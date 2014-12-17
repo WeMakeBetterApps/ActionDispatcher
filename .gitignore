@@ -1,0 +1,6 @@
+core/build
+out
+.gradle
+*.iml
+outputJars
+build

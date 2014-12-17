@@ -1,0 +1,96 @@
+apply plugin: 'java'
+apply plugin: 'maven'
+apply plugin: 'signing'
+
+configurations { providedCompile }
+
+sourceSets.main.compileClasspath += configurations.providedCompile
+sourceSets.test.compileClasspath += configurations.providedCompile
+sourceSets.test.runtimeClasspath += configurations.providedCompile
+
+version = '0.6.0'
+
+dependencies {
+    compile project(':java')
+
+    providedCompile 'io.reactivex:rxandroid:0.23.0'
+    providedCompile 'com.google.android:android:4.1.1.4'
+    providedCompile files('libs/*.jar')
+
+    // Testing
+    testCompile 'junit:junit:4.11'
+    testCompile 'org.robolectric:robolectric:2.2'
+    testCompile 'org.mockito:mockito-core:1.8.5'
+}
+
+test {
+    testLogging {
+        events "passed", "skipped", "failed", "standardOut", "standardError"
+    }
+}
+
+task sourcesJar(type: Jar, dependsOn:classes) {
+    classifier = 'sources'
+    from sourceSets.main.allSource
+}
+
+task javadocJar(type: Jar, dependsOn:javadoc) {
+    classifier = 'javadoc'
+    from javadoc.destinationDir
+}
+
+artifacts {
+    archives javadocJar, sourcesJar
+}
+
+signing {
+    sign configurations.archives
+}
+
+archivesBaseName = "actiondispatcher-android"
+
+uploadArchives {
+    repositories {
+        mavenDeployer {
+            beforeDeployment { MavenDeployment deployment -> signing.signPom(deployment) }
+
+            repository(url: "https://oss.sonatype.org/service/local/staging/deploy/maven2/") {
+                authentication(userName: ossrhUsername, password: ossrhPassword)
+            }
+
+            snapshotRepository(url: "https://oss.sonatype.org/content/repositories/snapshots/") {
+                authentication(userName: ossrhUsername, password: ossrhPassword)
+            }
+
+            pom.project {
+                name 'MortarLib'
+                packaging 'jar'
+                // optionally artifactId can be defined here
+                artifactId = "actiondispatcher-android"
+                description 'A persistent queue for synchronizing asynchronous tasks.'
+                url 'https://github.com/WeMakeBetterApps/ActionDispatcher'
+
+                scm {
+                    connection 'scm:git:http://github.com/wemakebetterapps/actiondispatcher'
+                    developerConnection 'scm:git:https://github.com/wemakebetterapps/actiondispatcher'
+                    url 'http://github.com/wemakebetterapps/actiondispatcher'
+                }
+
+                licenses {
+                    license {
+                        name 'The Apache License, Version 2.0'
+                        url 'http://www.apache.org/licenses/LICENSE-2.0.txt'
+                    }
+                }
+
+                developers {
+                    developer {
+                        id 'spierce7'
+                        name 'Scott Pierce'
+                        email 'scott@wemakebetterapps.com'
+                    }
+                }
+            }
+        }
+    }
+}
