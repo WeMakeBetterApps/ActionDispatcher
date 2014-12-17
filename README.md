@@ -1,6 +1,16 @@
 ActionDispatcher
 ================
 
+### Usage
+```groovy
+// You need the latest version of RXJava 1.0+, or the latest version of RXAndroid
+compile 'io.reactivex:rxandroid:0.23.0'
+
+//actiondispatcher-java for java only, actiondispatcher-android for android.
+compile 'com.wemakebetterapps:actiondispatcher-android:0.6.0'
+```
+
+
 ### Creation
 
 In most cases for Android, the default AndroidActionDispatcher with a few custom components should be enough:
