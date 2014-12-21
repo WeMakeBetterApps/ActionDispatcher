@@ -71,14 +71,15 @@ public abstract class BaseNetworkAction<T> extends NetworkAction<T> {
 
     if (cause instanceof RetrofitError) {
       RetrofitError retrofitError = (RetrofitError) cause;
-      if ( retrofitError.isNetworkError() ) {
-        if (retrofitError.getCause() instanceof SocketTimeoutException) {
-          subscriber.onError( new ConnectionTimeoutException() );
-        } else {
-          subscriber.onError( new NoInternetException() );
-        }
-      } else {
-        subscriber.onError( new ServerException( retrofitError.getResponse().getStatus() ) );
+      switch (retrofitError.getKind()) {
+        case NETWORK:
+          subscriber.onError(new NetworkException());
+          break;
+        case HTTP:
+          subscriber.onError(new ServerException(retrofitError.getResponse().getStatus()));
+          break;
+        default:
+          break;
       }
     }
 
