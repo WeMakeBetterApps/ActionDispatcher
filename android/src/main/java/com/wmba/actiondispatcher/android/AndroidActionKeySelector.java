@@ -1,9 +1,9 @@
 package com.wmba.actiondispatcher.android;
 
-import com.wmba.actiondispatcher.ActionDispatcher;
 import com.wmba.actiondispatcher.Action;
+import com.wmba.actiondispatcher.component.ActionKeySelector;
 
-public class AndroidActionKeySelector implements ActionDispatcher.ActionKeySelector {
+public class AndroidActionKeySelector implements ActionKeySelector {
 
   public static final String DEFAULT_NETWORK_KEY = "networkDefault";
 

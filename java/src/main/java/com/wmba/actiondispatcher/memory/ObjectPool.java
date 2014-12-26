@@ -1,4 +1,4 @@
-package com.wmba.actiondispatcher;
+package com.wmba.actiondispatcher.memory;
 
 /* package */ interface ObjectPool<T> {
   T borrow();

@@ -1,4 +1,6 @@
-package com.wmba.actiondispatcher;
+package com.wmba.actiondispatcher.persist;
+
+import com.wmba.actiondispatcher.SingularAction;
 
 import java.io.ByteArrayInputStream;
 import java.io.ByteArrayOutputStream;

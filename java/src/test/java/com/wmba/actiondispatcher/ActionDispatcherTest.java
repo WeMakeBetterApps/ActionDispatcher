@@ -1,5 +1,10 @@
 package com.wmba.actiondispatcher;
 
+import com.wmba.actiondispatcher.component.ActionKeySelector;
+import com.wmba.actiondispatcher.component.ActionPauser;
+import com.wmba.actiondispatcher.component.ActionRunnable;
+import com.wmba.actiondispatcher.component.ActionRunner;
+
 import org.junit.Before;
 import org.junit.Test;
 
@@ -20,16 +25,16 @@ import static org.junit.Assert.assertTrue;
 
 public class ActionDispatcherTest {
 
-  private ActionDispatcher mNormalActionDispatcher;
-  private ActionDispatcher mRunnerActionDispatcher;
+  private JavaActionDispatcher mNormalActionDispatcher;
+  private JavaActionDispatcher mRunnerActionDispatcher;
 
   @Before
   public void beforeTest() {
-    mNormalActionDispatcher = new ActionDispatcher.Builder().build();
-    mRunnerActionDispatcher = new ActionDispatcher.Builder()
-        .actionRunner(new ActionDispatcher.ActionRunner() {
+    mNormalActionDispatcher = new JavaActionDispatcher.Builder().build();
+    mRunnerActionDispatcher = new JavaActionDispatcher.Builder()
+        .actionRunner(new ActionRunner() {
           @Override
-          public void execute(ActionDispatcher.ActionRunnable actionRunnable, Action[] actions) {
+          public void execute(ActionRunnable actionRunnable, Action[] actions) {
             assertNotNull(actions);
 
             for (Action action : actions) {
@@ -43,7 +48,7 @@ public class ActionDispatcherTest {
             }
           }
         })
-        .keySelector(new ActionDispatcher.ActionKeySelector() {
+        .keySelector(new ActionKeySelector() {
           @Override public String getKey(Action... actions) {
             assertNotNull(actions);
 
@@ -51,10 +56,10 @@ public class ActionDispatcherTest {
               assertNotNull(action);
             }
 
-            return ActionDispatcher.ActionKeySelector.DEFAULT_KEY;
+            return ActionKeySelector.DEFAULT_KEY;
           }
         })
-        .pauser(new ActionDispatcher.ActionPauser() {
+        .pauser(new ActionPauser() {
           @Override public boolean shouldPauseForAction(Action action) {
             assertNotNull(action);
             return false;
@@ -69,7 +74,7 @@ public class ActionDispatcherTest {
     asyncSingleTest(mRunnerActionDispatcher);
   }
 
-  private void asyncSingleTest(ActionDispatcher actionDispatcher) {
+  private void asyncSingleTest(JavaActionDispatcher actionDispatcher) {
     Object response = actionDispatcher.toObservable(new TestAction())
         .toBlocking()
         .first();
@@ -82,7 +87,7 @@ public class ActionDispatcherTest {
     asyncMultiTest(mRunnerActionDispatcher);
   }
 
-  private void asyncMultiTest(ActionDispatcher actionDispatcher) {
+  private void asyncMultiTest(JavaActionDispatcher actionDispatcher) {
     final ComposableAction[] actions = new ComposableAction[] {
         new TestAction(),
         new TestAction2(),
@@ -117,7 +122,7 @@ public class ActionDispatcherTest {
     asyncMultiThreadTest(mRunnerActionDispatcher);
   }
 
-  private void asyncMultiThreadTest(ActionDispatcher actionDispatcher) {
+  private void asyncMultiThreadTest(JavaActionDispatcher actionDispatcher) {
     final long startThreadId = Thread.currentThread().getId();
 
     final ComposableAction[] actions1 = new ComposableAction[] {
@@ -221,7 +226,7 @@ public class ActionDispatcherTest {
     asyncOrderTest(mRunnerActionDispatcher);
   }
 
-  private void asyncOrderTest(ActionDispatcher dispatcher) {
+  private void asyncOrderTest(JavaActionDispatcher dispatcher) {
     final String threadKey = "asyncMultiOrderTest";
 
     final AtomicInteger completedCount = new AtomicInteger(0);
@@ -261,7 +266,7 @@ public class ActionDispatcherTest {
     asyncMultiKeyOrderTest(mRunnerActionDispatcher);
   }
 
-  private void asyncMultiKeyOrderTest(ActionDispatcher dispatcher) {
+  private void asyncMultiKeyOrderTest(JavaActionDispatcher dispatcher) {
     final String longThreadKey = "asyncMultiKeyOrderTest1";
     final String shortThreadKey = "asyncMultiKeyOrderTest2";
 

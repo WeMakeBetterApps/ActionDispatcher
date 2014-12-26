@@ -1,4 +1,4 @@
-package com.wmba.actiondispatcher;
+package com.wmba.actiondispatcher.persist;
 
 /**
  * A Base64 encoder/decoder.

@@ -4,10 +4,10 @@ import android.content.Context;
 import android.net.ConnectivityManager;
 import android.net.NetworkInfo;
 
-import com.wmba.actiondispatcher.ActionDispatcher;
 import com.wmba.actiondispatcher.Action;
+import com.wmba.actiondispatcher.component.ActionPauser;
 
-public class AndroidNetworkActionPauser implements ActionDispatcher.ActionPauser {
+public class AndroidNetworkActionPauser implements ActionPauser {
 
   private final Context mContext;
   private ConnectivityManager mConnectivityManager;

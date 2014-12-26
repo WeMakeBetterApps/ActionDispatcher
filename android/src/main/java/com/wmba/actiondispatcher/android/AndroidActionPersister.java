@@ -2,10 +2,10 @@ package com.wmba.actiondispatcher.android;
 
 import android.content.Context;
 
-import com.wmba.actiondispatcher.ActionPersister;
-import com.wmba.actiondispatcher.ActionSerializer;
-import com.wmba.actiondispatcher.JavaActionSerializer;
-import com.wmba.actiondispatcher.PersistedActionHolder;
+import com.wmba.actiondispatcher.persist.ActionPersister;
+import com.wmba.actiondispatcher.persist.ActionSerializer;
+import com.wmba.actiondispatcher.persist.JavaActionSerializer;
+import com.wmba.actiondispatcher.persist.PersistedActionHolder;
 import com.wmba.actiondispatcher.SingularAction;
 
 import java.util.List;

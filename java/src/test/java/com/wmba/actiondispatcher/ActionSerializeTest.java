@@ -1,5 +1,7 @@
 package com.wmba.actiondispatcher;
 
+import com.wmba.actiondispatcher.persist.JavaActionSerializer;
+
 import org.junit.Test;
 import static org.junit.Assert.*;
 

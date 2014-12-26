@@ -1,5 +1,7 @@
 package com.wmba.actiondispatcher;
 
+import com.wmba.actiondispatcher.persist.PersistedActionHolder;
+
 import org.junit.Test;
 
 import java.util.List;
@@ -38,7 +40,7 @@ public class ActionPersistTest {
 
     assertTrue(persister.isPersisted(action));
 
-    ActionDispatcher actionDispatcher = buildDispatcher(persister);
+    JavaActionDispatcher actionDispatcher = buildDispatcher(persister);
     actionDispatcher.toObservable(sharedKey, new TestAction())
         .subscribe(new Action1<TestResponse>() {
           @Override public void call(TestResponse testResponse) {
@@ -57,8 +59,8 @@ public class ActionPersistTest {
     assertFalse(persister.isPersisted(action));
   }
 
-  private ActionDispatcher buildDispatcher(TestPersister persister) {
-    return new ActionDispatcher.Builder()
+  private JavaActionDispatcher buildDispatcher(TestPersister persister) {
+    return new JavaActionDispatcher.Builder()
         .persister(persister)
         .build();
   }

@@ -2,7 +2,7 @@ package com.wmba.actiondispatcher.android;
 
 import android.content.Context;
 
-import com.wmba.actiondispatcher.PersistedActionHolder;
+import com.wmba.actiondispatcher.persist.PersistedActionHolder;
 import com.wmba.actiondispatcher.SingularAction;
 
 import org.junit.Test;

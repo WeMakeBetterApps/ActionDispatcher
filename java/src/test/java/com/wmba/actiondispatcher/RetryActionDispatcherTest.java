@@ -1,5 +1,11 @@
 package com.wmba.actiondispatcher;
 
+import com.wmba.actiondispatcher.component.ActionKeySelector;
+import com.wmba.actiondispatcher.component.ActionPauser;
+import com.wmba.actiondispatcher.component.ActionRunnable;
+import com.wmba.actiondispatcher.component.ActionRunner;
+import com.wmba.actiondispatcher.component.ObserveOnProvider;
+
 import org.junit.Test;
 
 import java.util.concurrent.CountDownLatch;
@@ -16,11 +22,11 @@ import static org.junit.Assert.assertTrue;
 
 public class RetryActionDispatcherTest {
 
-  private ActionDispatcher buildDispatcher(final TestPersister persister) {
-    return new ActionDispatcher.Builder()
-        .actionRunner(new ActionDispatcher.ActionRunner() {
+  private JavaActionDispatcher buildDispatcher(final TestPersister persister) {
+    return new JavaActionDispatcher.Builder()
+        .actionRunner(new ActionRunner() {
           @Override
-          public void execute(ActionDispatcher.ActionRunnable actionRunnable, Action[] actions) {
+          public void execute(ActionRunnable actionRunnable, Action[] actions) {
             assertNotNull(actions);
 
             for (Action action : actions) {
@@ -34,7 +40,7 @@ public class RetryActionDispatcherTest {
             actionRunnable.execute();
           }
         })
-        .observeOnProvider(new ActionDispatcher.ObserveOnProvider() {
+        .observeOnProvider(new ObserveOnProvider() {
           @Override public Scheduler provideScheduler(Action[] actions) {
             assertNotNull(actions);
             if (persister != null) {
@@ -48,7 +54,7 @@ public class RetryActionDispatcherTest {
             return Schedulers.immediate();
           }
         })
-        .keySelector(new ActionDispatcher.ActionKeySelector() {
+        .keySelector(new ActionKeySelector() {
           @Override public String getKey(Action... actions) {
             assertNotNull(actions);
             if (persister != null) {
@@ -60,10 +66,10 @@ public class RetryActionDispatcherTest {
               }
             }
 
-            return ActionDispatcher.ActionKeySelector.DEFAULT_KEY;
+            return ActionKeySelector.DEFAULT_KEY;
           }
         })
-        .pauser(new ActionDispatcher.ActionPauser() {
+        .pauser(new ActionPauser() {
           @Override public boolean shouldPauseForAction(Action action) {
             if (persister != null
                 && action instanceof SingularAction
@@ -79,7 +85,7 @@ public class RetryActionDispatcherTest {
   @Test
   public void retryTest() {
     final TestPersister persister = new TestPersister();
-    ActionDispatcher dispatcher = buildDispatcher(persister);
+    JavaActionDispatcher dispatcher = buildDispatcher(persister);
 
     final CountDownLatch latch = new CountDownLatch(1);
 

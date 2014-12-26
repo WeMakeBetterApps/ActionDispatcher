@@ -6,7 +6,7 @@ import android.database.Cursor;
 import android.database.sqlite.SQLiteDatabase;
 import android.database.sqlite.SQLiteOpenHelper;
 
-import com.wmba.actiondispatcher.PersistedActionHolder;
+import com.wmba.actiondispatcher.persist.PersistedActionHolder;
 
 import java.util.ArrayList;
 import java.util.List;

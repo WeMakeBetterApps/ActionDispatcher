@@ -1,18 +1,20 @@
-package com.wmba.actiondispatcher;
+package com.wmba.actiondispatcher.memory;
 
 /**
  * A thread-safe implementation of an object pool.
  *
  * @param <T> The type of the pooled object.
  */
-/* package */ abstract class AbstractSynchronizedObjectPool<T> implements ObjectPool<T> {
+public abstract class AbstractSynchronizedObjectPool<T> implements ObjectPool<T> {
 
   public static final int DEFAULT_CAPACITY = 10;
 
-  private int mIndex = -1;
-  private final Object mLock = new Object();
+  private final Object LOCK = new Object();
+
   private final Object[] mObjectPool;
   private final int mMaxIndex;
+
+  private int mIndex = -1;
 
   public AbstractSynchronizedObjectPool() {
     this(DEFAULT_CAPACITY);
@@ -32,7 +34,7 @@ package com.wmba.actiondispatcher;
   public T borrow() {
     T object;
 
-    synchronized (mLock) {
+    synchronized (LOCK) {
 
       if (mIndex >= 0) {
         //noinspection unchecked
@@ -54,7 +56,7 @@ package com.wmba.actiondispatcher;
 
     free(obj);
 
-    synchronized (mLock) {
+    synchronized (LOCK) {
 
       int newIndex = mIndex + 1;
       if (newIndex <= mMaxIndex) {

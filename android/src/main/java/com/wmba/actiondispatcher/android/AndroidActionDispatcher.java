@@ -2,10 +2,15 @@ package com.wmba.actiondispatcher.android;
 
 import android.content.Context;
 
-import com.wmba.actiondispatcher.ActionDispatcher;
-import com.wmba.actiondispatcher.ActionPersister;
+import com.wmba.actiondispatcher.JavaActionDispatcher;
+import com.wmba.actiondispatcher.component.ActionInjector;
+import com.wmba.actiondispatcher.component.ActionKeySelector;
+import com.wmba.actiondispatcher.component.ActionPauser;
+import com.wmba.actiondispatcher.component.ActionRunner;
+import com.wmba.actiondispatcher.component.ObserveOnProvider;
+import com.wmba.actiondispatcher.persist.ActionPersister;
 
-public class AndroidActionDispatcher extends ActionDispatcher {
+public class AndroidActionDispatcher extends JavaActionDispatcher {
 
   public static class Builder {
 
