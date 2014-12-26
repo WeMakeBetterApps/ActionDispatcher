@@ -43,7 +43,6 @@ public class JavaActionDispatcher implements ActionDispatcher {
   private final ActionPauser mPauser;
   private final ActionInjector mInjector;
 
-
   private final Object mPersistentQueueRestoreLock = new Object();
   private boolean mIsPersistentQueueRestored = false;
 
@@ -178,6 +177,7 @@ public class JavaActionDispatcher implements ActionDispatcher {
                 mQueuedActionExecutors.get(i).execute(mQueuedActionRunnables.get(i));
               }
             }
+
             mIsPersistentQueueRestored = true;
 
             mQueuedActionExecutors = null;
@@ -507,7 +507,6 @@ public class JavaActionDispatcher implements ActionDispatcher {
         }
       };
       runOnExecutor(executor, runnable);
-
     }
 
     @Override protected void onRetryAction(final Action action) {
