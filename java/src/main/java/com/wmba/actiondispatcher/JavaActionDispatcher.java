@@ -358,7 +358,7 @@ public class JavaActionDispatcher implements ActionDispatcher {
     }
   }
 
-  /*package*/ class ComposableOnSubscribe implements Observable.OnSubscribe<Object> {
+  /*package*/ class ActionOnSubscribe implements Observable.OnSubscribe<Object> {
 
     protected String key;
     protected Action[] actions;
@@ -465,7 +465,7 @@ public class JavaActionDispatcher implements ActionDispatcher {
     }
   }
 
-  /*package*/ class PersistentOnSubscribe extends ComposableOnSubscribe {
+  /*package*/ class PersistentActionOnSubscribe extends ActionOnSubscribe {
 
     private final Semaphore persistSemaphore = new Semaphore(1);
     private Long persistedId = null;
@@ -534,49 +534,49 @@ public class JavaActionDispatcher implements ActionDispatcher {
    *
    */
 
-  /*package*/ class ComposableOnSubscribePool extends AbstractSynchronizedObjectPool<ComposableOnSubscribe> {
+  /*package*/ class ComposableOnSubscribePool extends AbstractSynchronizedObjectPool<ActionOnSubscribe> {
 
     public ComposableOnSubscribePool() {
       super(10);
     }
 
-    @Override protected ComposableOnSubscribe create() {
-      return new ComposableOnSubscribe();
+    @Override protected ActionOnSubscribe create() {
+      return new ActionOnSubscribe();
     }
 
-    @Override protected void free(ComposableOnSubscribe obj) {
+    @Override protected void free(ActionOnSubscribe obj) {
       obj.set(null, null);
     }
 
-    public ComposableOnSubscribe get(String key, Action[] actions) {
-      ComposableOnSubscribe obj = borrow();
+    public ActionOnSubscribe get(String key, Action[] actions) {
+      ActionOnSubscribe obj = borrow();
       obj.set(key, actions);
       return obj;
     }
 
   }
 
-  /* package */ class PersistentOnSubscribePool extends AbstractSynchronizedObjectPool<PersistentOnSubscribe> {
+  /* package */ class PersistentOnSubscribePool extends AbstractSynchronizedObjectPool<PersistentActionOnSubscribe> {
 
     public PersistentOnSubscribePool() {
       super(5);
     }
 
-    @Override protected PersistentOnSubscribe create() {
-      return new PersistentOnSubscribe();
+    @Override protected PersistentActionOnSubscribe create() {
+      return new PersistentActionOnSubscribe();
     }
 
-    @Override protected void free(PersistentOnSubscribe obj) {
+    @Override protected void free(PersistentActionOnSubscribe obj) {
       obj.set(null, null);
     }
 
-    public PersistentOnSubscribe get(String key, Action[] actions) {
+    public PersistentActionOnSubscribe get(String key, Action[] actions) {
       return get(key, actions, false, null);
     }
 
-    public PersistentOnSubscribe get(String key, Action[] actions, boolean isActionAlreadyPersisted,
+    public PersistentActionOnSubscribe get(String key, Action[] actions, boolean isActionAlreadyPersisted,
                                      Long persistedId) {
-      PersistentOnSubscribe obj = borrow();
+      PersistentActionOnSubscribe obj = borrow();
       obj.set(key, actions, isActionAlreadyPersisted, persistedId);
       return obj;
     }
