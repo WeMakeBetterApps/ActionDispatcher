@@ -383,8 +383,10 @@ public class JavaActionDispatcher implements ActionDispatcher {
       }
     }
 
-    for (Object Object : Objects)
+    for (Object Object : Objects) {
+      //noinspection unchecked
       context.getSubscriber().onNext(Object);
+    }
 
     context.getSubscriber().onCompleted();
 
@@ -393,7 +395,7 @@ public class JavaActionDispatcher implements ActionDispatcher {
     }
   }
 
-  /*package*/ class ActionOnSubscribe implements Observable.OnSubscribe<Object>, SubscriptionContext {
+  private class ActionOnSubscribe implements Observable.OnSubscribe<Object>, SubscriptionContext {
 
     protected Subscriber<? super Object> mSubscriber;
     protected String mKey;
@@ -478,7 +480,7 @@ public class JavaActionDispatcher implements ActionDispatcher {
 
   }
 
-  /*package*/ class PersistentActionOnSubscribe extends ActionOnSubscribe {
+  private class PersistentActionOnSubscribe extends ActionOnSubscribe {
 
     private final Semaphore mPersistSemaphore = new Semaphore(1);
     private Long mPersistedId = null;
@@ -538,7 +540,7 @@ public class JavaActionDispatcher implements ActionDispatcher {
     }
   }
 
-  /*package*/ class InstantSubscriptionContext implements SubscriptionContext {
+  private class InstantSubscriptionContext implements SubscriptionContext {
 
     private Action[] mActions;
     private Object[] mResponses;
@@ -599,7 +601,7 @@ public class JavaActionDispatcher implements ActionDispatcher {
    *
    */
 
-  /*package*/ class ActionOnSubscribePool extends AbstractSynchronizedObjectPool<ActionOnSubscribe> {
+  private class ActionOnSubscribePool extends AbstractSynchronizedObjectPool<ActionOnSubscribe> {
 
     public ActionOnSubscribePool() {
       super(10);
@@ -621,7 +623,7 @@ public class JavaActionDispatcher implements ActionDispatcher {
 
   }
 
-  /*package*/ class InstantSubscriptionContextPool extends AbstractSynchronizedObjectPool<InstantSubscriptionContext> {
+  private class InstantSubscriptionContextPool extends AbstractSynchronizedObjectPool<InstantSubscriptionContext> {
 
     public InstantSubscriptionContextPool() {
       super(10);
@@ -643,7 +645,7 @@ public class JavaActionDispatcher implements ActionDispatcher {
 
   }
 
-  /* package */ class PersistentActionOnSubscribePool extends AbstractSynchronizedObjectPool<PersistentActionOnSubscribe> {
+  private class PersistentActionOnSubscribePool extends AbstractSynchronizedObjectPool<PersistentActionOnSubscribe> {
 
     public PersistentActionOnSubscribePool() {
       super(5);
