@@ -4,7 +4,7 @@ import java.io.Serializable;
 
 import rx.Subscriber;
 
-public abstract class SingularAction<T> implements Action<T>, Serializable {
+public abstract class SingularAction<T> extends Action<T> implements Serializable {
 
   private static final long serialVersionUID = 1L;
 

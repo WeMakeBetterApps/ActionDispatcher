@@ -1,13 +1,36 @@
 package com.wmba.actiondispatcher;
 
+import com.wmba.actiondispatcher.component.UnsubscribedProvider;
+
 import rx.Subscriber;
 
-public interface Action<T> {
+public abstract class Action<T> {
 
-  T execute() throws Throwable;
-  boolean shouldRetryForThrowable(Throwable throwable, Subscriber<T> subscriber);
-  int getRetryLimit();
-  int getRetryCount();
-  void incrementRetryCount();
+  private transient UnsubscribedProvider mUnsubscribedProvider;
+
+  public abstract T execute() throws Throwable;
+  public abstract boolean shouldRetryForThrowable(Throwable throwable, Subscriber<T> subscriber);
+  public abstract int getRetryLimit();
+  public abstract int getRetryCount();
+  public abstract void incrementRetryCount();
+
+  /**
+   * @return true if the {@link Action} should run even if the observable has been unsubscribed.
+   */
+  public boolean shouldRunIfUnsubscribed() {
+    return true;
+  }
+
+  /*package*/ void set(UnsubscribedProvider unsubscribedProvider) {
+    mUnsubscribedProvider = unsubscribedProvider;
+  }
+
+  /*package*/ void clear() {
+    mUnsubscribedProvider = null;
+  }
+
+  public boolean isUnsubscribed() {
+    return mUnsubscribedProvider == null || mUnsubscribedProvider.isUnsubscribed();
+  }
 
 }

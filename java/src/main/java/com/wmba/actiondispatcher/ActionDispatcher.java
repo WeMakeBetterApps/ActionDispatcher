@@ -5,6 +5,10 @@ import java.util.Set;
 import rx.Observable;
 
 public interface ActionDispatcher {
+
+  public static final long PAUSE_EXPONENTIAL_BACKOFF_MIN_TIME = 100;
+  public static final long PAUSE_EXPONENTIAL_BACKOFF_MAX_TIME = 3000;
+
   Set<String> getActiveKeys();
 
   <T> Observable<T> toObservable(Action<T> action);
@@ -28,4 +32,6 @@ public interface ActionDispatcher {
   <T> Observable<T> toObservable(SingularAction<T> action);
 
   <T> Observable<T> toObservable(String key, SingularAction<T> action);
+
+  <T> T runInstantly(Action<T> action);
 }

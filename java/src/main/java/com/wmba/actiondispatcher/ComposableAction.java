@@ -2,7 +2,7 @@ package com.wmba.actiondispatcher;
 
 import rx.Subscriber;
 
-public abstract class ComposableAction<T> implements Action<T> {
+public abstract class ComposableAction<T> extends Action<T> {
 
   private int mRetryCount = 0;
 
