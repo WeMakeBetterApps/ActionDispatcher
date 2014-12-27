@@ -341,6 +341,66 @@ public class ActionDispatcherTest {
     assertTrue(shortEndTime[0] < longEndTime[0]);
   }
 
+  @Test
+  public void blockingActionTest() {
+    blockingActionTest(mNormalActionDispatcher);
+    blockingActionTest(mRunnerActionDispatcher);
+  }
+
+  private void blockingActionTest(ActionDispatcher actionDispatcher) {
+    final long startThreadId = Thread.currentThread().getId();
+
+    final int[] count = {0};
+
+    actionDispatcher.subscribeBlocking(new SingularAction(false) {
+      @Override public Object execute() throws Throwable {
+        assertEquals(Thread.currentThread().getId(), startThreadId);
+        count[0]++;
+        return null;
+      }
+    });
+
+    assertEquals(count[0], 1);
+
+    actionDispatcher.subscribeBlocking(
+        new ComposableAction() {
+          @Override public Object execute() throws Throwable {
+            assertEquals(Thread.currentThread().getId(), startThreadId);
+            count[0]++;
+            return null;
+          }
+        },
+        new ComposableAction() {
+          @Override public Object execute() throws Throwable {
+            assertEquals(Thread.currentThread().getId(), startThreadId);
+            count[0]++;
+            return null;
+          }
+        });
+
+    assertEquals(count[0], 3);
+  }
+
+  @Test
+  public void actionSubscriptionTest() {
+    actionSubscriptionTest(mNormalActionDispatcher);
+    actionSubscriptionTest(mRunnerActionDispatcher);
+  }
+
+  private void actionSubscriptionTest(ActionDispatcher actionDispatcher) {
+    SubscriptionTestAction action = new SubscriptionTestAction();
+
+    assertTrue(action.isUnsubscribed());
+
+    Boolean result = actionDispatcher.toObservable(action)
+        .toBlocking()
+        .first();
+    assertEquals(result, Boolean.TRUE);
+
+    assertTrue(action.isUnsubscribed());
+  }
+
+
   /*
   Inner Classes
    */
@@ -380,4 +440,12 @@ public class ActionDispatcherTest {
 
   private class TestResponse2 {
   }
+
+  private class SubscriptionTestAction extends ComposableAction<Boolean> {
+    @Override public Boolean execute() throws Throwable {
+      assertFalse(isUnsubscribed());
+      return Boolean.TRUE;
+    }
+  }
+
 }

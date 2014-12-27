@@ -274,12 +274,16 @@ public class JavaActionDispatcher implements ActionDispatcher {
     }
   }
 
-  @Override public <T> T runBlocking(Action<T> action) {
+  @Override public <T> T subscribeBlocking(Action<T> action) {
     //noinspection unchecked
-    return (T) runBlocking(new Action[]{action})[0];
+    return (T) subscribeBlocking(new Action[]{action})[0];
   }
 
-  @Override public Object[] runBlocking(Action... actions) {
+  @Override public Object[] subscribeBlocking(ComposableAction... actions) {
+    return subscribeBlocking((Action[]) actions);
+  }
+
+  private Object[] subscribeBlocking(Action... actions) {
     InstantSubscriptionContext context = mInstantSubscriptionContextPool.get(actions);
     runActions(context);
 

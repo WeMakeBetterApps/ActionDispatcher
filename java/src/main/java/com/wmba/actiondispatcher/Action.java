@@ -32,7 +32,7 @@ public abstract class Action<T> {
   }
 
   protected T runAction(Action<T> action) {
-    return mContext.getActionDispatcher().runBlocking(action);
+    return mContext.getActionDispatcher().subscribeBlocking(action);
   }
 
 }
