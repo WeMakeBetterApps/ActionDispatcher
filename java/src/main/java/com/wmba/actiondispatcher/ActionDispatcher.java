@@ -33,5 +33,7 @@ public interface ActionDispatcher {
 
   <T> Observable<T> toObservable(String key, SingularAction<T> action);
 
-  <T> T runInstantly(Action<T> action);
+  <T> T runBlocking(Action<T> action);
+
+  Object[] runBlocking(Action... actions);
 }

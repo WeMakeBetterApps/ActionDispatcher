@@ -6,32 +6,26 @@ import com.wmba.actiondispatcher.component.ActionPauser;
 import com.wmba.actiondispatcher.component.ActionRunnable;
 import com.wmba.actiondispatcher.component.ActionRunner;
 import com.wmba.actiondispatcher.component.ObserveOnProvider;
-import com.wmba.actiondispatcher.component.UnsubscribedProvider;
 import com.wmba.actiondispatcher.memory.AbstractSynchronizedObjectPool;
 import com.wmba.actiondispatcher.persist.ActionPersister;
 import com.wmba.actiondispatcher.persist.PersistedActionHolder;
 
 import java.security.InvalidParameterException;
 import java.util.ArrayList;
-import java.util.HashMap;
 import java.util.List;
-import java.util.Map;
 import java.util.Set;
 import java.util.concurrent.Executor;
-import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.Semaphore;
-import java.util.concurrent.ThreadFactory;
 
 import rx.Observable;
 import rx.Subscriber;
 
 public class JavaActionDispatcher implements ActionDispatcher {
 
-  private final Map<String, ExecutorService> mExecutorCache = new HashMap<String, ExecutorService>();
-
+  private final ExecutorCache mExecutorCache = new ExecutorCache();
   private final ActionOnSubscribePool mActionOnSubscribePool = new ActionOnSubscribePool();
-  private final InstantActionOnSubscribePool mInstantActionOnSubscribePool = new InstantActionOnSubscribePool();
+  private final InstantSubscriptionContextPool mInstantSubscriptionContextPool = new InstantSubscriptionContextPool();
   private final PersistentActionOnSubscribePool mPersistentActionOnSubscribePool = new PersistentActionOnSubscribePool();
   private final Executor mPersistentExecutor = Executors.newSingleThreadExecutor();
 
@@ -42,19 +36,19 @@ public class JavaActionDispatcher implements ActionDispatcher {
   private final ActionPauser mPauser;
   private final ActionInjector mInjector;
 
-  private final Object mPersistentQueueRestoreLock = new Object();
+  private final Object PERSISTENT_QUEUE_RESORE_LOCK = new Object();
   private boolean mIsPersistentQueueRestored = false;
 
   // Use 2 lists instead of a map as maps are highly memory intensive.
   /**
    * List of Queued Executors for actions that are run prior to the persistent queue being restored.
-   * This will always be used inside of the synchronized context of mPersistentQueueRestoreLock
+   * This will always be used inside of the synchronized context of PERSISTENT_QUEUE_RESORE_LOCK
    * and is paired with mQueuedActionRunnables.
    */
   private List<Executor> mQueuedActionExecutors = null;
   /**
    * List of Queued Runnables for actions that are run prior to the persistent queue being restored.
-   * This will always be used inside of the synchronized context of mPersistentQueueRestoreLock
+   * This will always be used inside of the synchronized context of PERSISTENT_QUEUE_RESORE_LOCK
    * and is paired with mQueuedActionExecutors.
    */
   private List<Runnable> mQueuedActionRunnables = null;
@@ -170,7 +164,7 @@ public class JavaActionDispatcher implements ActionDispatcher {
           }
 
           // Now that we've loaded the persistent jobs, lets check if we've queued anything.
-          synchronized (mPersistentQueueRestoreLock) {
+          synchronized (PERSISTENT_QUEUE_RESORE_LOCK) {
             if (mQueuedActionExecutors != null) {
               for (int i = 0; i < mQueuedActionExecutors.size(); i++) {
                 mQueuedActionExecutors.get(i).execute(mQueuedActionRunnables.get(i));
@@ -185,14 +179,14 @@ public class JavaActionDispatcher implements ActionDispatcher {
         }
       });
     } else {
-      synchronized (mPersistentQueueRestoreLock) {
+      synchronized (PERSISTENT_QUEUE_RESORE_LOCK) {
         mIsPersistentQueueRestored = true;
       }
     }
   }
 
   @Override public Set<String> getActiveKeys() {
-    return mExecutorCache.keySet();
+    return mExecutorCache.getActiveKeys();
   }
 
   /**
@@ -280,18 +274,22 @@ public class JavaActionDispatcher implements ActionDispatcher {
     }
   }
 
-  @Override public <T> T runInstantly(Action<T> action) {
+  @Override public <T> T runBlocking(Action<T> action) {
+    //noinspection unchecked
+    return (T) runBlocking(new Action[]{action})[0];
+  }
 
-    return null;
+  @Override public Object[] runBlocking(Action... actions) {
+    InstantSubscriptionContext context = mInstantSubscriptionContextPool.get(actions);
+    runActions(context);
+
+    Object[] responses = context.getResponses();
+    mInstantSubscriptionContextPool.release(context);
+    return responses;
   }
 
   private Observable getActionObservable(String key, Action... actions) {
     Observable observable = Observable.create(mActionOnSubscribePool.get(key, actions));
-    return postCreateObservable(observable, actions);
-  }
-
-  private Observable getInstantActionObservable(String key, Action... actions) {
-    Observable observable = Observable.create(mInstantActionOnSubscribePool.get(key, actions));
     return postCreateObservable(observable, actions);
   }
 
@@ -307,40 +305,6 @@ public class JavaActionDispatcher implements ActionDispatcher {
     return observable;
   }
 
-  private ExecutorService getExecutorForKey(final String key) {
-    ExecutorService executor = mExecutorCache.get(key);
-
-    if (executor == null) {
-      synchronized (mExecutorCache) {
-
-        executor = mExecutorCache.get(key);
-        if (executor == null) {
-          //noinspection NullableProblems
-          ThreadFactory tf = new ThreadFactory() {
-            @Override public Thread newThread(Runnable runnable) {
-              Thread t = new Thread(runnable, "ActionDispatcherThread-" + key);
-              t.setPriority(Thread.MIN_PRIORITY);
-              t.setDaemon(true);
-              return t;
-            }
-          };
-
-          if (key.equals(ActionKeySelector.ASYNC_KEY)) {
-            // Custom for async
-            executor = Executors.newCachedThreadPool(tf);
-          } else {
-            executor = Executors.newSingleThreadScheduledExecutor(tf);
-          }
-
-          mExecutorCache.put(key, executor);
-        }
-
-      }
-    }
-
-    return executor;
-  }
-
   /**
    * Will run the Runnable on the Executor if the persistent queue is restored and will queue the
    * runnable if the persistent queue has not been restored yet.
@@ -352,7 +316,7 @@ public class JavaActionDispatcher implements ActionDispatcher {
     if (mIsPersistentQueueRestored) {
       executor.execute(runnable);
     } else {
-      synchronized (mPersistentQueueRestoreLock) {
+      synchronized (PERSISTENT_QUEUE_RESORE_LOCK) {
         if (mIsPersistentQueueRestored) {
           executor.execute(runnable);
         } else {
@@ -368,26 +332,85 @@ public class JavaActionDispatcher implements ActionDispatcher {
     }
   }
 
-  /*package*/ class ActionOnSubscribe implements Observable.OnSubscribe<Object>,
-      UnsubscribedProvider {
+  private void runActions(SubscriptionContext context) {
+    for (Action action : context.getActions()) {
+      action.set(context);
+    }
 
-    protected String mKey;
-    protected Action[] mActions;
+    long currentPauseTime = PAUSE_EXPONENTIAL_BACKOFF_MIN_TIME;
 
-    private long mCurrentPauseTime;
+    boolean runIfUnsubscribed = false;
+    {
+      for (Action action : context.getActions()) {
+        if (action.shouldRunIfUnsubscribed()) {
+          runIfUnsubscribed = true;
+          break;
+        }
+      }
+    }
+
+    int actionsLen = context.getActions().length;
+    Object[] Objects = new Object[actionsLen];
+
+    for (int i = 0; i < actionsLen; i++) {
+      context.setCurrentActionIndex(i);
+      Action action = context.getActions()[i];
+      mInjector.inject(action);
+
+      if (!runIfUnsubscribed && context.getSubscriber().isUnsubscribed())
+        return;
+
+      while (mPauser.shouldPauseForAction(action)) {
+        try {
+          Thread.sleep(currentPauseTime);
+        } catch (InterruptedException e) {
+          throw new RuntimeException(e);
+        }
+
+        currentPauseTime *= 2;  // Exponential backoff
+        if (currentPauseTime > PAUSE_EXPONENTIAL_BACKOFF_MAX_TIME)
+          currentPauseTime = PAUSE_EXPONENTIAL_BACKOFF_MAX_TIME;
+      }
+      currentPauseTime = PAUSE_EXPONENTIAL_BACKOFF_MIN_TIME;
+
+      if (!runIfUnsubscribed && context.getSubscriber().isUnsubscribed())
+        return;
+
+      try {
+        Objects[i] = action.execute();
+      } catch (Throwable t) {
+        throw new RuntimeException(t);
+      }
+    }
+
+    for (Object Object : Objects)
+      context.getSubscriber().onNext(Object);
+
+    context.getSubscriber().onCompleted();
+
+    for (Action action : context.getActions()) {
+      action.clear();
+    }
+  }
+
+  /*package*/ class ActionOnSubscribe implements Observable.OnSubscribe<Object>, SubscriptionContext {
+
     protected Subscriber<? super Object> mSubscriber;
-    protected int mCurrentActionIndex;
+    protected String mKey;
+
+    private Action[] mActions;
+    private int mCurrentActionIndex;
 
     protected final ActionRunnable mActionRunnable = new ActionRunnable() {
       @Override public void execute() {
-        runActions();
+        runActions(ActionOnSubscribe.this);
       }
     };
 
     @Override public void call(final Subscriber<? super Object> subscriber) {
       this.mSubscriber = subscriber;
 
-      Executor executor = getExecutorForKey(mKey);
+      Executor executor = mExecutorCache.getExecutorForKey(mKey);
       Runnable runnable = new Runnable() {
         @Override public void run() {
           runActionRunner();
@@ -424,95 +447,33 @@ public class JavaActionDispatcher implements ActionDispatcher {
       action.incrementRetryCount();
     }
 
-    private void runActions() {
-      setActionData();
-
-      mCurrentPauseTime = PAUSE_EXPONENTIAL_BACKOFF_MIN_TIME;
-
-      boolean runIfUnsubscribed = runIfUnsubscribed();
-
-      int len = mActions.length;
-      Object[] Objects = new Object[len];
-
-      for (int i = 0; i < len; i++) {
-        mCurrentActionIndex = i;
-        Action action = mActions[i];
-        mInjector.inject(action);
-
-        if (!runIfUnsubscribed && mSubscriber.isUnsubscribed())
-          return;
-
-        while (mPauser.shouldPauseForAction(action)) {
-          pause();
-        }
-        mCurrentPauseTime = PAUSE_EXPONENTIAL_BACKOFF_MIN_TIME;
-
-        if (!runIfUnsubscribed && mSubscriber.isUnsubscribed())
-          return;
-
-        try {
-          Objects[i] = action.execute();
-        } catch (Throwable t) {
-          throw new RuntimeException(t);
-        }
-      }
-
-      for (Object Object : Objects)
-        mSubscriber.onNext(Object);
-
-      mSubscriber.onCompleted();
-
-      clearActionData();
-    }
-
-    private void setActionData() {
-      for (Action action : mActions) {
-        action.set(this);
-      }
-    }
-
-    private void clearActionData() {
-      for (Action action : mActions) {
-        action.clear();
-      }
-    }
-
-    private boolean runIfUnsubscribed() {
-      for (Action action : mActions) {
-        if (action.shouldRunIfUnsubscribed())
-          return true;
-      }
-      return false;
-    }
-
-    private void pause() {
-      try {
-        Thread.sleep(mCurrentPauseTime);
-      } catch (InterruptedException e) {
-        throw new RuntimeException(e);
-      }
-
-      mCurrentPauseTime *= 2;  // Exponential backoff
-      if (mCurrentPauseTime > PAUSE_EXPONENTIAL_BACKOFF_MAX_TIME)
-        mCurrentPauseTime = PAUSE_EXPONENTIAL_BACKOFF_MAX_TIME;
-    }
-
     public void set(String key, Action[] actions) {
       this.mKey = key;
       this.mActions = actions;
     }
 
-    @Override public boolean isUnsubscribed() {
-      return mSubscriber == null || mSubscriber.isUnsubscribed();
+    @Override public Action[] getActions() {
+      return mActions;
     }
 
-  }
+    @Override public Subscriber<? super Object> getSubscriber() {
+      return mSubscriber;
+    }
 
-  /*package*/ class InstantActionOnSubscribe extends ActionOnSubscribe {
+    @Override public ActionDispatcher getActionDispatcher() {
+      return JavaActionDispatcher.this;
+    }
 
-    @Override public void call(Subscriber<? super Object> subscriber) {
-      this.mSubscriber = subscriber;
-      mActionRunnable.execute();
+    @Override public int getCurrentActionIndex() {
+      return mCurrentActionIndex;
+    }
+
+    @Override public void setCurrentActionIndex(int currentActionIndex) {
+      mCurrentActionIndex = currentActionIndex;
+    }
+
+    @Override public boolean isUnsubscribed() {
+      return mSubscriber == null || mSubscriber.isUnsubscribed();
     }
 
   }
@@ -530,14 +491,14 @@ public class JavaActionDispatcher implements ActionDispatcher {
         mPersistSemaphore.acquireUninterruptibly();
         Runnable persistentRunnable = new Runnable() {
           @Override public void run() {
-            mPersistedId = mPersister.persist((SingularAction) mActions[0]);
+            mPersistedId = mPersister.persist((SingularAction) getActions()[0]);
             mPersistSemaphore.release();
           }
         };
         runOnExecutor(mPersistentExecutor, persistentRunnable);
       }
 
-      Executor executor = getExecutorForKey(mKey);
+      Executor executor = mExecutorCache.getExecutorForKey(mKey);
       Runnable runnable = new Runnable() {
         @Override public void run() {
           mPersistSemaphore.acquireUninterruptibly();
@@ -577,6 +538,61 @@ public class JavaActionDispatcher implements ActionDispatcher {
     }
   }
 
+  /*package*/ class InstantSubscriptionContext implements SubscriptionContext {
+
+    private Action[] mActions;
+    private Object[] mResponses;
+    private int mCurrentActionIndex;
+
+    private final Subscriber<Object> mSubscriber = new Subscriber<Object>() {
+      @Override public void onCompleted() {}
+      @Override public void onError(Throwable e) {}
+      @Override public void onNext(Object o) {
+        mResponses[mCurrentActionIndex] = o;
+      }
+    };
+
+    @Override public Action[] getActions() {
+      return mActions;
+    }
+
+    @Override public Subscriber<? super Object> getSubscriber() {
+      //noinspection unchecked
+      return mSubscriber;
+    }
+
+    @Override public ActionDispatcher getActionDispatcher() {
+      return JavaActionDispatcher.this;
+    }
+
+    @Override public int getCurrentActionIndex() {
+      return mCurrentActionIndex;
+    }
+
+    @Override public void setCurrentActionIndex(int currentActionIndex) {
+      mCurrentActionIndex = currentActionIndex;
+    }
+
+    @Override public boolean isUnsubscribed() {
+      return mSubscriber.isUnsubscribed();
+    }
+
+    public Object[] getResponses() {
+      return mResponses;
+    }
+
+    public void set(Action[] actions) {
+      mActions = actions;
+      mResponses = new Object[mActions.length];
+      mCurrentActionIndex = 0;
+    }
+
+    public void free() {
+      mActions = null;
+      mResponses = null;
+    }
+  }
+
   /*
    *
    * OBJECT POOLS
@@ -605,23 +621,23 @@ public class JavaActionDispatcher implements ActionDispatcher {
 
   }
 
-  /*package*/ class InstantActionOnSubscribePool extends AbstractSynchronizedObjectPool<ActionOnSubscribe> {
+  /*package*/ class InstantSubscriptionContextPool extends AbstractSynchronizedObjectPool<InstantSubscriptionContext> {
 
-    public InstantActionOnSubscribePool() {
+    public InstantSubscriptionContextPool() {
       super(10);
     }
 
-    @Override protected ActionOnSubscribe create() {
-      return new ActionOnSubscribe();
+    @Override protected InstantSubscriptionContext create() {
+      return new InstantSubscriptionContext();
     }
 
-    @Override protected void free(ActionOnSubscribe obj) {
-      obj.set(null, null);
+    @Override protected void free(InstantSubscriptionContext obj) {
+      obj.free();
     }
 
-    public ActionOnSubscribe get(String key, Action[] actions) {
-      ActionOnSubscribe obj = borrow();
-      obj.set(key, actions);
+    public InstantSubscriptionContext get(Action[] actions) {
+      InstantSubscriptionContext obj = borrow();
+      obj.set(actions);
       return obj;
     }
 

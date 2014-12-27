@@ -1,12 +1,10 @@
 package com.wmba.actiondispatcher;
 
-import com.wmba.actiondispatcher.component.UnsubscribedProvider;
-
 import rx.Subscriber;
 
 public abstract class Action<T> {
 
-  private transient UnsubscribedProvider mUnsubscribedProvider;
+  private transient SubscriptionContext mContext;
 
   public abstract T execute() throws Throwable;
   public abstract boolean shouldRetryForThrowable(Throwable throwable, Subscriber<T> subscriber);
@@ -21,16 +19,20 @@ public abstract class Action<T> {
     return true;
   }
 
-  /*package*/ void set(UnsubscribedProvider unsubscribedProvider) {
-    mUnsubscribedProvider = unsubscribedProvider;
+  /*package*/ void set(SubscriptionContext context) {
+    mContext = context;
   }
 
   /*package*/ void clear() {
-    mUnsubscribedProvider = null;
+    mContext = null;
   }
 
   public boolean isUnsubscribed() {
-    return mUnsubscribedProvider == null || mUnsubscribedProvider.isUnsubscribed();
+    return mContext == null || mContext.isUnsubscribed();
+  }
+
+  protected T runAction(Action<T> action) {
+    return mContext.getActionDispatcher().runBlocking(action);
   }
 
 }
