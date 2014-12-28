@@ -347,12 +347,12 @@ public class ActionDispatcherTest {
     blockingActionTest(mRunnerActionDispatcher);
   }
 
-  private void blockingActionTest(ActionDispatcher actionDispatcher) {
+  private void blockingActionTest(JavaActionDispatcher actionDispatcher) {
     final long startThreadId = Thread.currentThread().getId();
 
     final int[] count = {0};
 
-    actionDispatcher.subscribeBlocking(new SingularAction(false) {
+    actionDispatcher.subscribeBlocking(null, new SingularAction(false) {
       @Override public Object execute() throws Throwable {
         assertEquals(Thread.currentThread().getId(), startThreadId);
         count[0]++;
@@ -362,7 +362,7 @@ public class ActionDispatcherTest {
 
     assertEquals(count[0], 1);
 
-    actionDispatcher.subscribeBlocking(
+    actionDispatcher.subscribeBlocking(null,
         new ComposableAction() {
           @Override public Object execute() throws Throwable {
             assertEquals(Thread.currentThread().getId(), startThreadId);
@@ -387,19 +387,61 @@ public class ActionDispatcherTest {
     actionSubscriptionTest(mRunnerActionDispatcher);
   }
 
-  private void actionSubscriptionTest(ActionDispatcher actionDispatcher) {
+  private void actionSubscriptionTest(JavaActionDispatcher actionDispatcher) {
     SubscriptionTestAction action = new SubscriptionTestAction();
 
     assertTrue(action.isUnsubscribed());
 
     Boolean result = actionDispatcher.toObservable(action)
         .toBlocking()
-        .first();
+        .last();
     assertEquals(result, Boolean.TRUE);
 
     assertTrue(action.isUnsubscribed());
+
+    SubscriptionTestAction action2 = new SubscriptionTestAction();
+    assertTrue(action2.isUnsubscribed());
+    Boolean result2 = actionDispatcher.subscribeBlocking(null, action2);
+    assertEquals(result2, Boolean.TRUE);
+    assertTrue(action2.isUnsubscribed());
   }
 
+  @Test
+  public void actionInsideActionTest() {
+    actionInsideActionTest(mNormalActionDispatcher);
+    actionInsideActionTest(mRunnerActionDispatcher);
+  }
+
+  private void actionInsideActionTest(JavaActionDispatcher dispatcher) {
+    final int[] count = {0};
+
+    final Action<Integer> innerAction = new ComposableAction<Integer>() {
+      @Override public Integer execute() throws Throwable {
+        assertEquals(isUnsubscribed(), false);
+        count[0]++;
+        return count[0];
+      }
+    };
+
+    Action<Integer> outerAction = new ComposableAction<Integer>() {
+      @Override public Integer execute() throws Throwable {
+        assertEquals(isUnsubscribed(), false);
+        count[0]++;
+        return subscribeBlocking(innerAction);
+      }
+    };
+
+    assertEquals(innerAction.isUnsubscribed(), true);
+    assertEquals(outerAction.isUnsubscribed(), true);
+
+    Integer number = dispatcher.toObservable(outerAction)
+        .toBlocking()
+        .last();
+
+    assertEquals(innerAction.isUnsubscribed(), true);
+    assertEquals(outerAction.isUnsubscribed(), true);
+    assertEquals(number, Integer.valueOf(2));
+  }
 
   /*
   Inner Classes

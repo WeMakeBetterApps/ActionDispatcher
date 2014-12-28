@@ -33,7 +33,4 @@ public interface ActionDispatcher {
 
   <T> Observable<T> toObservable(String key, SingularAction<T> action);
 
-  <T> T subscribeBlocking(Action<T> action);
-
-  Object[] subscribeBlocking(ComposableAction... actions);
 }
