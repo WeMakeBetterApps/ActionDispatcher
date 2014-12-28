@@ -392,11 +392,11 @@ public class JavaActionDispatcher implements ActionDispatcher {
       context.getSubscriber().onNext(Object);
     }
 
-    context.getSubscriber().onCompleted();
-
     for (Action action : context.getActions()) {
       action.clear();
     }
+
+    context.getSubscriber().onCompleted();
   }
 
   private class ActionOnSubscribe implements Observable.OnSubscribe<Object>, SubscriptionContext {
