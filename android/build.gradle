@@ -8,7 +8,7 @@ sourceSets.main.compileClasspath += configurations.providedCompile
 sourceSets.test.compileClasspath += configurations.providedCompile
 sourceSets.test.runtimeClasspath += configurations.providedCompile
 
-version = '0.7.0'
+version = '0.7.1'
 
 dependencies {
     compile project(':java')
