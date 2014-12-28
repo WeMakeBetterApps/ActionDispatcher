@@ -32,7 +32,13 @@ public abstract class Action<T> {
   }
 
   protected <V> V subscribeBlocking(Action<V> action) {
-    return mContext.getActionDispatcher().subscribeBlocking(action);
+    ActionDispatcher ad = mContext.getActionDispatcher();
+    if (ad instanceof JavaActionDispatcher) {
+      return ((JavaActionDispatcher) ad).subscribeBlocking(mContext, action);
+    } else {
+      throw new RuntimeException(String.format("The implementation of ActionDispatcher must be a" +
+          "child of %s to use #subscribeBlocking()", JavaActionDispatcher.class.getSimpleName()));
+    }
   }
 
 }

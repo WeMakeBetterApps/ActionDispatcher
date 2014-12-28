@@ -274,17 +274,17 @@ public class JavaActionDispatcher implements ActionDispatcher {
     }
   }
 
-  @Override public <T> T subscribeBlocking(Action<T> action) {
+  /*package*/ <T> T subscribeBlocking(SubscriptionContext parentContext, Action<T> action) {
     //noinspection unchecked
-    return (T) subscribeBlocking(new Action[]{action})[0];
+    return (T) subscribeBlocking(parentContext, new Action[]{action})[0];
   }
 
-  @Override public Object[] subscribeBlocking(ComposableAction... actions) {
-    return subscribeBlocking((Action[]) actions);
+  /*package*/ Object[] subscribeBlocking(SubscriptionContext parentContext, ComposableAction... actions) {
+    return subscribeBlocking(parentContext, (Action[]) actions);
   }
 
-  private Object[] subscribeBlocking(Action... actions) {
-    InstantSubscriptionContext context = mInstantSubscriptionContextPool.get(actions);
+  private Object[] subscribeBlocking(SubscriptionContext parentContext, Action... actions) {
+    InstantSubscriptionContext context = mInstantSubscriptionContextPool.get(parentContext, actions);
     runActions(context);
 
     Object[] responses = context.getResponses();
@@ -546,9 +546,11 @@ public class JavaActionDispatcher implements ActionDispatcher {
 
   private class InstantSubscriptionContext implements SubscriptionContext {
 
+    private SubscriptionContext mParentContext;
     private Action[] mActions;
     private Object[] mResponses;
     private int mCurrentActionIndex;
+    private boolean mIsUnsubscribed = true;
 
     private final Subscriber<Object> mSubscriber = new Subscriber<Object>() {
       @Override public void onCompleted() {}
@@ -580,22 +582,29 @@ public class JavaActionDispatcher implements ActionDispatcher {
     }
 
     @Override public boolean isUnsubscribed() {
-      return mSubscriber.isUnsubscribed();
+      return (mParentContext == null) ? mIsUnsubscribed : mParentContext.isUnsubscribed();
     }
 
     public Object[] getResponses() {
       return mResponses;
     }
 
-    public void set(Action[] actions) {
+    public void set(SubscriptionContext context, Action[] actions) {
+      mParentContext = context;
       mActions = actions;
       mResponses = new Object[mActions.length];
       mCurrentActionIndex = 0;
+
+      if (mParentContext == null)
+        mIsUnsubscribed = false;
     }
 
     public void free() {
+      mParentContext = null;
       mActions = null;
       mResponses = null;
+
+      mIsUnsubscribed = true;
     }
   }
 
@@ -641,9 +650,9 @@ public class JavaActionDispatcher implements ActionDispatcher {
       obj.free();
     }
 
-    public InstantSubscriptionContext get(Action[] actions) {
+    public InstantSubscriptionContext get(SubscriptionContext context, Action[] actions) {
       InstantSubscriptionContext obj = borrow();
-      obj.set(actions);
+      obj.set(context, actions);
       return obj;
     }
 
@@ -668,7 +677,7 @@ public class JavaActionDispatcher implements ActionDispatcher {
     }
 
     public PersistentActionOnSubscribe get(String key, Action[] actions, boolean isActionAlreadyPersisted,
-                                     Long persistedId) {
+                                           Long persistedId) {
       PersistentActionOnSubscribe obj = borrow();
       obj.set(key, actions, isActionAlreadyPersisted, persistedId);
       return obj;
