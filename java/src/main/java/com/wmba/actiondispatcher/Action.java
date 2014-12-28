@@ -31,7 +31,7 @@ public abstract class Action<T> {
     return mContext == null || mContext.isUnsubscribed();
   }
 
-  protected T runAction(Action<T> action) {
+  protected T subscribeBlocking(Action<T> action) {
     return mContext.getActionDispatcher().subscribeBlocking(action);
   }
 
