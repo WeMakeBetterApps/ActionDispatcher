@@ -26,19 +26,13 @@ public abstract class Action<T> {
   /*package*/ void clear() {
     mContext = null;
   }
+  
+  /*package*/ SubscriptionContext getSubscriptionContext() {
+    return mContext;
+  }
 
   public boolean isUnsubscribed() {
     return mContext == null || mContext.isUnsubscribed();
-  }
-
-  protected <V> V subscribeBlocking(Action<V> action) {
-    ActionDispatcher ad = mContext.getActionDispatcher();
-    if (ad instanceof JavaActionDispatcher) {
-      return ((JavaActionDispatcher) ad).subscribeBlocking(mContext, action);
-    } else {
-      throw new RuntimeException(String.format("The implementation of ActionDispatcher must be a" +
-          "child of %s to use #subscribeBlocking()", JavaActionDispatcher.class.getSimpleName()));
-    }
   }
 
 }
