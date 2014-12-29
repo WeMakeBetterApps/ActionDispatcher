@@ -7,7 +7,7 @@ ActionDispatcher
 compile 'io.reactivex:rxandroid:0.23.0'
 
 //actiondispatcher-java for java only, actiondispatcher-android for android.
-compile 'com.wemakebetterapps:actiondispatcher-android:0.7.3'
+compile 'com.wemakebetterapps:actiondispatcher-android:0.7.4'
 ```
 
 

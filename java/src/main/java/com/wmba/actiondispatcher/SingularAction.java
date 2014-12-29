@@ -34,6 +34,16 @@ public abstract class SingularAction<T> extends Action<T> implements Serializabl
     mRetryCount++;
   }
 
+  protected <V> V subscribeBlocking(Action<V> action) {
+    ActionDispatcher ad = getSubscriptionContext().getActionDispatcher();
+    if (ad instanceof JavaActionDispatcher) {
+      return ((JavaActionDispatcher) ad).subscribeBlocking(getSubscriptionContext(), action);
+    } else {
+      throw new RuntimeException(String.format("The implementation of ActionDispatcher must be a" +
+          "child of %s to use #subscribeBlocking()", JavaActionDispatcher.class.getSimpleName()));
+    }
+  }
+
   /* package */ void setKey(String key) {
     this.mKey = key;
   }
@@ -45,4 +55,5 @@ public abstract class SingularAction<T> extends Action<T> implements Serializabl
   public boolean isPersistent() {
     return mIsPersistent;
   }
+
 }
