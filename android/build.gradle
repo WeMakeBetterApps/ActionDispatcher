@@ -63,7 +63,7 @@ uploadArchives {
             }
 
             pom.project {
-                name 'MortarLib'
+                name 'ActionDispatcher'
                 packaging 'jar'
                 // optionally artifactId can be defined here
                 artifactId = "actiondispatcher-android"
