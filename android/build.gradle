@@ -1,6 +1,20 @@
+buildscript {
+    repositories {
+        mavenCentral()
+    }
+
+    dependencies {
+    }
+}
+
 apply plugin: 'java'
 apply plugin: 'maven'
 apply plugin: 'signing'
+
+repositories {
+    mavenLocal()
+    mavenCentral()
+}
 
 configurations { providedCompile }
 
@@ -8,12 +22,12 @@ sourceSets.main.compileClasspath += configurations.providedCompile
 sourceSets.test.compileClasspath += configurations.providedCompile
 sourceSets.test.runtimeClasspath += configurations.providedCompile
 
-version = '0.7.4'
+version = '1.0.0-SNAPSHOT'
 
 dependencies {
     compile project(':java')
 
-    providedCompile 'io.reactivex:rxandroid:0.23.0'
+    providedCompile 'io.reactivex:rxandroid:0.25.0'
     providedCompile 'com.google.android:android:4.1.1.4'
     providedCompile files('libs/*.jar')
 
