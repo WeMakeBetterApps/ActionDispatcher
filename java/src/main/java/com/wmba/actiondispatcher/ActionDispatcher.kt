@@ -193,8 +193,8 @@ public interface ActionLogger {
 
 public open class KeySelector {
   companion object {
-    public val DEFAULT_KEY = "default";
-    public val ASYNC_KEY = "async";
+    public val DEFAULT_KEY: String = "default";
+    public val ASYNC_KEY: String = "async";
   }
 
   /**
@@ -232,6 +232,8 @@ private class ExecutorCache {
         } else {
           executor = Executors.newSingleThreadExecutor(tf)
         }
+
+        cache.put(key, executor)
       }
 
       return executor;
