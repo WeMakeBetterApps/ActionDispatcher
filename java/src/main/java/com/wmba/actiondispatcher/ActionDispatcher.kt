@@ -46,6 +46,10 @@ public open class ActionDispatcher private constructor(
     return if (scheduler == null) single else single.observeOn(scheduler)
   }
 
+  public fun getActiveKeys(): Set<String> {
+    return executorCache.getActiveKeys()
+  }
+
   fun <T> subscribeBlocking(subscriptionContext: SubscriptionContext, action: Action<T>): T {
     val executionContext = ExecutionContext("", action);
     val result = executionContext.runAction(subscriptionContext)
@@ -223,14 +227,14 @@ private class ExecutorCache {
         if (key == KeySelector.ASYNC_KEY) {
           val threadCount = AtomicLong(1)
           executor = Executors.newCachedThreadPool({
-            val t = Thread(r, "ActionDispatcherThread-$key-${threadCount.getAndIncrement()}")
+            val t = Thread(it, "ActionDispatcherThread-$key-${threadCount.getAndIncrement()}")
             t.setPriority(Thread.MIN_PRIORITY)
             t.setDaemon(true)
             t
           })
         } else {
           executor = Executors.newSingleThreadExecutor({
-            val t = Thread(r, "ActionDispatcherThread-$key")
+            val t = Thread(it, "ActionDispatcherThread-$key")
             t.setPriority(Thread.MIN_PRIORITY)
             t.setDaemon(true)
             t

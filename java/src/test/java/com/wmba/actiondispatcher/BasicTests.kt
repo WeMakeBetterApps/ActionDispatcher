@@ -6,7 +6,7 @@ import org.junit.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertTrue
 
-public class BasicTest {
+public class BasicTests {
   private var dispatcher: ActionDispatcher = ActionDispatcher.Builder().build()
 
   @Before fun beforeTest() {
@@ -21,19 +21,19 @@ public class BasicTest {
           assertTrue(it)
         })
 
-    val blockingResult = dispatcher.toSingle(SimpleAction())
+    block()
+    assertEquals(1, count)
+
+    val activeKeys = dispatcher.getActiveKeys();
+    assertEquals(1, activeKeys.size())
+    assertTrue(activeKeys.contains(KeySelector.DEFAULT_KEY))
+  }
+
+  fun block() {
+    val value = dispatcher.toSingle(SimpleAction())
         .toObservable()
         .toBlocking()
         .first()
-
-    assertTrue(blockingResult);
-    assertEquals(1, count)
-  }
-
-  private class SimpleAction: Action<Boolean>() {
-    override fun execute(): Boolean {
-      return true
-    }
+    assertTrue(value)
   }
 }
-
