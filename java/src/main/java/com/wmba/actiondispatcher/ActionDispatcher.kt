@@ -3,9 +3,9 @@ package com.wmba.actiondispatcher
 import rx.Scheduler
 import rx.Single
 import rx.SingleSubscriber
-import java.lang
 import java.util.HashMap
 import java.util.concurrent.*
+import java.util.concurrent.atomic.AtomicLong
 
 public open class ActionDispatcher private constructor(
     private val keySelector: KeySelector,
@@ -220,17 +220,21 @@ private class ExecutorCache {
       var executor = cache.get(key);
 
       if (executor == null) {
-        val tf = ThreadFactory { r ->
-          val t = Thread(r, "ActionDispatcherThread-" + key)
-          t.setPriority(Thread.MIN_PRIORITY)
-          t.setDaemon(true)
-          t
-        }
-
         if (key == KeySelector.ASYNC_KEY) {
-          executor = Executors.newCachedThreadPool(tf)
+          val threadCount = AtomicLong(1)
+          executor = Executors.newCachedThreadPool({
+            val t = Thread(r, "ActionDispatcherThread-$key-${threadCount.getAndIncrement()}")
+            t.setPriority(Thread.MIN_PRIORITY)
+            t.setDaemon(true)
+            t
+          })
         } else {
-          executor = Executors.newSingleThreadExecutor(tf)
+          executor = Executors.newSingleThreadExecutor({
+            val t = Thread(r, "ActionDispatcherThread-$key")
+            t.setPriority(Thread.MIN_PRIORITY)
+            t.setDaemon(true)
+            t
+          })
         }
 
         cache.put(key, executor)
