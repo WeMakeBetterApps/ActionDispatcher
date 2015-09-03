@@ -1,8 +1,5 @@
 package com.wmba.actiondispatcher;
 
-import org.jetbrains.annotations.NotNull;
-import org.jetbrains.annotations.Nullable;
-
 import java.util.Set;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
@@ -16,10 +13,10 @@ public class ActionDispatcher {
   private final ExecutorService mPersistentExecutor = Executors.newSingleThreadExecutor();
   private final ExecutorCache mExecutorCache = new ExecutorCache();
 
-  @NotNull private final KeySelector mKeySelector;
-  @Nullable private final ActionPreparer mActionPreparer;
-  @Nullable private final ActionLogger mActionLogger;
-  @Nullable private final ActionPersister mActionPersister;
+  private final KeySelector mKeySelector;
+  private final ActionPreparer mActionPreparer;
+  private final ActionLogger mActionLogger;
+  private final ActionPersister mActionPersister;
 
   public ActionDispatcher(KeySelector keySelector, ActionPreparer actionPreparer,
                           ActionLogger actionLogger, ActionPersister actionPersister) {
