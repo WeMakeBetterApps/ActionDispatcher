@@ -36,7 +36,7 @@ public class ActionDispatcher {
 
   public <T> Single<T> toSingle(String key, Action<T> action) {
     //noinspection unchecked
-    Single<T> single = Single.create(new ExecutionContext(key, action));
+    Single<T> single = Single.create(new ExecutionContext(key, action, action.isPersistent()));
     Scheduler scheduler = action.observeOn();
     return (scheduler == null) ? single : single.observeOn(scheduler);
   }
@@ -46,20 +46,26 @@ public class ActionDispatcher {
   }
 
   /* package */ <T> T subscribeBlocking(SubscriptionContext subscriptionContext, Action<T> action) throws Throwable {
-    ExecutionContext<T> executionContext = new ExecutionContext<T>("", action);
+    ExecutionContext<T> executionContext = new ExecutionContext<T>(null, action, false);
     return executionContext.runAction(subscriptionContext);
   }
 
-  /* package */ class ExecutionContext<T> implements Single.OnSubscribe<T> {
+  private class ExecutionContext<T> implements Single.OnSubscribe<T> {
     private final String mKey;
     private final Action<T> mAction;
 
+    /* Action Options, should be used instead of calling getters from the action so that the getters
+       are only called once. */
+    private final boolean mIsPersistent;
+
+    // Optional member variables that are only used in certain circumstances.
     private Semaphore mPersistSemaphore = null;
     private Long mPersistedId = null;
 
-    ExecutionContext(String key, Action<T> action) {
+    ExecutionContext(String key, Action<T> action, boolean isPersistent) {
       mKey = key;
       mAction = action;
+      mIsPersistent = isPersistent;
     }
 
     @Override public void call(final SingleSubscriber<? super T> subscriber) {
@@ -79,7 +85,7 @@ public class ActionDispatcher {
     public T runAction(SubscriptionContext subscriptionContext) throws Throwable {
       mAction.setSubscriptionContext(subscriptionContext);
 
-      if (mAction.isPersistent()) {
+      if (mIsPersistent) {
         if (mActionPersister == null) {
           throw new IllegalStateException("Running Persistent Action " + mAction.getClass().getName()
               + ", but no ActionPersister is set");

@@ -3,18 +3,8 @@ package com.wmba.actiondispatcher;
 import rx.Scheduler;
 
 public abstract class Action<T> {
-  private final boolean mIsPersistent;
-
   private SubscriptionContext mSubscriptionContext = null;
   private int mRetryCount = -1;
-
-  public Action() {
-    this(false);
-  }
-
-  public Action(boolean isPersistent) {
-    mIsPersistent = isPersistent;
-  }
 
   public void prepare() {}
 
@@ -51,14 +41,22 @@ public abstract class Action<T> {
     return mSubscriptionContext != null && mSubscriptionContext.isUnsubscribed();
   }
 
-  protected <T> T subscribeBlocking(Action<T> action) throws Throwable {
+  /**
+   * Runs an action inside of the lifecycle of another Action synchronously. Whether or not an
+   * action is persistent is ignored for this call.
+   *
+   * @param action the Action to run.
+   * @return the response of the Action.
+   * @throws Throwable
+   */
+  protected <R> R subscribeBlocking(Action<R> action) throws Throwable {
     if (mSubscriptionContext == null) throw new IllegalStateException("SubscriptionContext is null. " +
         "subscribeBlocking() can only be called from within the Action lifecycle.");
     return mSubscriptionContext.getDispatcher().subscribeBlocking(mSubscriptionContext, action);
   }
 
   public boolean isPersistent() {
-    return mIsPersistent;
+    return false;
   }
 
   /* package */ SubscriptionContext getSubscriptionContext() {
