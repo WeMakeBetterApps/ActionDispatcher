@@ -3,7 +3,7 @@ package com.wmba.actiondispatcher;
 import rx.Scheduler;
 
 public abstract class Action<T> {
-  private SubscriptionContext mSubscriptionContext = null;
+  private transient SubscriptionContext mSubscriptionContext = null;
   private int mRetryCount = -1;
 
   public void prepare() {}
