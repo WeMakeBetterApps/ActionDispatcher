@@ -122,15 +122,18 @@ public class ActionDispatcher {
           @Override public void run() {
             try {
               mPersistedId = mActionPersister.persist(mAction);
-              mPersistSemaphore.release();
             } catch (Throwable t) {
               if (mActionLogger != null)
                 mActionLogger.logError(t, "Error while persisting Action " + mAction.getClass().getName());
+            } finally {
+              mPersistSemaphore.release();
             }
           }
         });
 
+        // Block until persist completes
         mPersistSemaphore.acquireUninterruptibly();
+        mPersistSemaphore.release();
       } catch (Throwable t) {
         if (mActionLogger != null)
           mActionLogger.logError(t, "Error while persisting Action " + mAction.getClass().getName());
@@ -144,15 +147,18 @@ public class ActionDispatcher {
           @Override public void run() {
             try {
               mActionPersister.update(mPersistedId, mAction);
-              mPersistSemaphore.release();
             } catch (Throwable t) {
               if (mActionLogger != null)
                 mActionLogger.logError(t, "Error while persisting update for Action " + mAction.getClass().getName());
+            } finally {
+              mPersistSemaphore.release();
             }
           }
         });
 
+        // Block until persist completes
         mPersistSemaphore.acquireUninterruptibly();
+        mPersistSemaphore.release();
       } catch (Throwable t) {
         if (mActionLogger != null)
           mActionLogger.logError(t, "Error while persisting update for Action " + mAction.getClass().getName());
