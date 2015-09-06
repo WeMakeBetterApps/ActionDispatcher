@@ -1,16 +1,17 @@
 package com.wmba.actiondispatcher;
 
+import java.util.ArrayList;
+import java.util.List;
 import java.util.Set;
 import java.util.concurrent.ExecutorService;
-import java.util.concurrent.Executors;
-import java.util.concurrent.Semaphore;
 
 import rx.Scheduler;
 import rx.Single;
 import rx.SingleSubscriber;
 
 public class ActionDispatcher {
-  private final ExecutorService mPersistentExecutor = Executors.newSingleThreadExecutor();
+  private final Object mPersistentLock = new Object();
+
   private final ExecutorCache mExecutorCache = new ExecutorCache();
 
   private final KeySelector mKeySelector;
@@ -18,12 +19,63 @@ public class ActionDispatcher {
   private final ActionLogger mActionLogger;
   private final ActionPersister mActionPersister;
 
+  /**
+   * Is null until the persisted Actions have been loaded. If no Actions are loaded, it is replaced
+   * with an empty list.
+   */
+  private List<PersistedActionHolder> mPersistedActions = null;
+  private boolean mPendingRunPersistentActions = false;
+
+  /**
+   * Used for queueing actions before the persisted Actions have loaded when the dispatcher is
+   * first starting. Both of these lists are kept in sync, and always modified under the
+   * mPersistentLock.
+   */
+  private List<ExecutorService> mQueuedActionExecutors = null;
+  private List<Runnable> mQueuedActionRunnables = null;
+
   public ActionDispatcher(KeySelector keySelector, ActionPreparer actionPreparer,
                           ActionLogger actionLogger, ActionPersister actionPersister) {
     mKeySelector = keySelector;
     mActionPreparer = actionPreparer;
     mActionLogger = actionLogger;
     mActionPersister = actionPersister;
+
+    if (mActionPersister != null) {
+      ExecutorService executor = mExecutorCache.getExecutorForKey(KeySelector.ASYNC_KEY);
+      executor.execute(new Runnable() {
+        @Override public void run() {
+          List<PersistedActionHolder> persistedActions = mActionPersister.getPersistedActions();
+          if (persistedActions == null) {
+            persistedActions = new ArrayList<PersistedActionHolder>(0);
+          }
+
+          if (mActionLogger != null)
+            mActionLogger.logDebug("Loaded " + persistedActions.size() + " persistent Actions");
+
+          synchronized (mPersistentLock) {
+            mPersistedActions = persistedActions;
+            if (mPendingRunPersistentActions) {
+              startPersistentActions();
+            }
+
+            if (mQueuedActionExecutors != null) {
+              for (int i = 0, size = mQueuedActionExecutors.size(); i < size; i++) {
+                ExecutorService executor = mQueuedActionExecutors.get(i);
+                Runnable runnable = mQueuedActionRunnables.get(i);
+                executor.execute(runnable);
+              }
+              mQueuedActionExecutors = null;
+              mQueuedActionRunnables = null;
+            }
+          }
+        }
+      });
+    } else {
+      synchronized (mPersistentLock) {
+        mPersistedActions = new ArrayList<PersistedActionHolder>(0);
+      }
+    }
   }
 
   public <T> Single<T> toSingle(Action<T> action) {
@@ -41,6 +93,37 @@ public class ActionDispatcher {
     return (scheduler == null) ? single : single.observeOn(scheduler);
   }
 
+  public void startPersistentActions() {
+    synchronized (mPersistentLock) {
+
+      boolean persistentActionsLoaded = mPersistedActions != null;
+      if (persistentActionsLoaded) {
+
+        for (PersistedActionHolder holder : mPersistedActions) {
+
+          long persistedId = holder.getActionId();
+          Action<?> action = holder.getAction();
+          String key = mKeySelector.getKey(action);
+          //noinspection unchecked
+          Single.create(new ExecutionContext(key, action, persistedId))
+              .subscribe(new SingleSubscriber() {
+                @Override public void onSuccess(Object value) {}
+                @Override public void onError(Throwable error) {}
+              });
+
+        }
+
+        if (mActionLogger != null) mActionLogger.logDebug("Persistent Actions started");
+
+        mPersistedActions.clear();
+        mPendingRunPersistentActions = false;
+      } else {
+        mPendingRunPersistentActions = true;
+      }
+
+    }
+  }
+
   public Set<String> getActiveKeys() {
     return mExecutorCache.getActiveKeys();
   }
@@ -53,24 +136,25 @@ public class ActionDispatcher {
   private class ExecutionContext<T> implements Single.OnSubscribe<T> {
     private final String mKey;
     private final Action<T> mAction;
-
-    /* Action Options, should be used instead of calling getters from the action so that the getters
-       are only called once. */
-    private final boolean mIsPersistent;
+    private final boolean mShouldPersist;
 
     // Optional member variables that are only used in certain circumstances.
-    private Semaphore mPersistSemaphore = null;
     private Long mPersistedId = null;
 
-    ExecutionContext(String key, Action<T> action, boolean isPersistent) {
+    ExecutionContext(String key, Action<T> action, boolean shouldPersist) {
       mKey = key;
       mAction = action;
-      mIsPersistent = isPersistent;
+      mShouldPersist = shouldPersist;
+    }
+
+    ExecutionContext(String key, Action<T> action, long persistedId) {
+      this(key, action, false);
+      mPersistedId = persistedId;
     }
 
     @Override public void call(final SingleSubscriber<? super T> subscriber) {
       ExecutorService executor = mExecutorCache.getExecutorForKey(mKey);
-      executor.execute(new Runnable() {
+      Runnable runnable = new Runnable() {
         @Override public void run() {
           try {
             T response = runAction(new SubscriptionContext(ActionDispatcher.this, subscriber));
@@ -79,19 +163,37 @@ public class ActionDispatcher {
             subscriber.onError(t);
           }
         }
-      });
+      };
+
+      if (mPersistedActions == null) {
+        // Persistent Actions haven't loaded
+        synchronized (mPersistentLock) {
+          if (mPersistedActions == null) {
+            if (mQueuedActionExecutors == null) {
+              mQueuedActionExecutors = new ArrayList<ExecutorService>();
+              mQueuedActionRunnables = new ArrayList<Runnable>();
+            }
+
+            mQueuedActionExecutors.add(executor);
+            mQueuedActionRunnables.add(runnable);
+          } else {
+            executor.execute(runnable);
+          }
+        }
+      } else {
+        executor.execute(runnable);
+      }
     }
 
     public T runAction(SubscriptionContext subscriptionContext) throws Throwable {
       mAction.setSubscriptionContext(subscriptionContext);
 
-      if (mIsPersistent) {
+      if (mShouldPersist) {
         if (mActionPersister == null) {
           throw new IllegalStateException("Running Persistent Action " + mAction.getClass().getName()
               + ", but no ActionPersister is set");
         }
 
-        mPersistSemaphore = new Semaphore(1);
         persistAction();
       }
 
@@ -117,23 +219,7 @@ public class ActionDispatcher {
 
     private void persistAction() {
       try {
-        mPersistSemaphore.acquireUninterruptibly();
-        mPersistentExecutor.execute(new Runnable() {
-          @Override public void run() {
-            try {
-              mPersistedId = mActionPersister.persist(mAction);
-            } catch (Throwable t) {
-              if (mActionLogger != null)
-                mActionLogger.logError(t, "Error while persisting Action " + mAction.getClass().getName());
-            } finally {
-              mPersistSemaphore.release();
-            }
-          }
-        });
-
-        // Block until persist completes
-        mPersistSemaphore.acquireUninterruptibly();
-        mPersistSemaphore.release();
+        mPersistedId = mActionPersister.persist(mAction);
       } catch (Throwable t) {
         if (mActionLogger != null)
           mActionLogger.logError(t, "Error while persisting Action " + mAction.getClass().getName());
@@ -142,23 +228,7 @@ public class ActionDispatcher {
 
     private void persistActionUpdate() {
       try {
-        mPersistSemaphore.acquireUninterruptibly();
-        mPersistentExecutor.execute(new Runnable() {
-          @Override public void run() {
-            try {
-              mActionPersister.update(mPersistedId, mAction);
-            } catch (Throwable t) {
-              if (mActionLogger != null)
-                mActionLogger.logError(t, "Error while persisting update for Action " + mAction.getClass().getName());
-            } finally {
-              mPersistSemaphore.release();
-            }
-          }
-        });
-
-        // Block until persist completes
-        mPersistSemaphore.acquireUninterruptibly();
-        mPersistSemaphore.release();
+        mActionPersister.update(mPersistedId, mAction);
       } catch (Throwable t) {
         if (mActionLogger != null)
           mActionLogger.logError(t, "Error while persisting update for Action " + mAction.getClass().getName());
@@ -220,36 +290,24 @@ public class ActionDispatcher {
       );
     }
 
-    public KeySelector getKeySelector() {
-      return mKeySelector;
-    }
-
-    public void setKeySelector(KeySelector keySelector) {
+    public ActionDispatcher.Builder withKeySelector(KeySelector keySelector) {
       mKeySelector = keySelector;
+      return this;
     }
 
-    public ActionPreparer getActionPreparer() {
-      return mActionPreparer;
-    }
-
-    public void setActionPreparer(ActionPreparer actionPreparer) {
+    public ActionDispatcher.Builder withActionPreparer(ActionPreparer actionPreparer) {
       mActionPreparer = actionPreparer;
+      return this;
     }
 
-    public ActionLogger getActionLogger() {
-      return mActionLogger;
-    }
-
-    public void setActionLogger(ActionLogger actionLogger) {
+    public ActionDispatcher.Builder withActionLogger(ActionLogger actionLogger) {
       mActionLogger = actionLogger;
+      return this;
     }
 
-    public ActionPersister getActionPersister() {
-      return mActionPersister;
-    }
-
-    public void setActionPersister(ActionPersister actionPersister) {
+    public ActionDispatcher.Builder withActionPersister(ActionPersister actionPersister) {
       mActionPersister = actionPersister;
+      return this;
     }
   }
 }
