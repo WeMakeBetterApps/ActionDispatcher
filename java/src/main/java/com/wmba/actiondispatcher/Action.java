@@ -4,7 +4,7 @@ import rx.Scheduler;
 
 public abstract class Action<T> {
   private transient SubscriptionContext mSubscriptionContext = null;
-  private int mRetryCount = -1;
+  private int mRetryCount = 0;
 
   /**
    * Called once before the action is run, allowing some setup / preparation to be done on the
@@ -28,8 +28,7 @@ public abstract class Action<T> {
    * @return true if the Action should retry, false otherwise.
    */
   public boolean shouldRetryForThrowable(Throwable t) {
-    mRetryCount++;
-    return mRetryCount < getRetryLimit();
+    return ++mRetryCount < getRetryLimit();
   }
 
   public int getRetryLimit() {

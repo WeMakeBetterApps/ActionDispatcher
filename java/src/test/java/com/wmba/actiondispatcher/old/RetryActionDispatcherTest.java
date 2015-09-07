@@ -1,11 +1,8 @@
 //package com.wmba.actiondispatcher.old;
 //
 //import com.wmba.actiondispatcher.Action;
-//import com.wmba.actiondispatcher.component.ActionKeySelector;
-//import com.wmba.actiondispatcher.component.ActionPauser;
-//import com.wmba.actiondispatcher.component.ActionRunnable;
-//import com.wmba.actiondispatcher.component.ActionRunner;
-//import com.wmba.actiondispatcher.component.ObserveOnProvider;
+//import com.wmba.actiondispatcher.ActionDispatcher;
+//import com.wmba.actiondispatcher.component.InstantActionPersister;
 //
 //import org.junit.Test;
 //
@@ -16,15 +13,12 @@
 //import rx.Subscriber;
 //import rx.schedulers.Schedulers;
 //
-//import static org.junit.Assert.assertEquals;
-//import static org.junit.Assert.assertFalse;
-//import static org.junit.Assert.assertNotNull;
-//import static org.junit.Assert.assertTrue;
+//import static org.junit.Assert.*;
 //
 //public class RetryActionDispatcherTest {
 //
-//  private JavaActionDispatcher buildDispatcher(final TestPersister persister) {
-//    return new JavaActionDispatcher.Builder()
+//  private ActionDispatcher buildDispatcher(final InstantActionPersister persister) {
+//    return new ActionDispatcher.Builder()
 //        .actionRunner(new ActionRunner() {
 //          @Override
 //          public void execute(ActionRunnable actionRunnable, Action[] actions) {
@@ -85,8 +79,8 @@
 //
 //  @Test
 //  public void retryTest() {
-//    final TestPersister persister = new TestPersister();
-//    JavaActionDispatcher dispatcher = buildDispatcher(persister);
+//    final InstantActionPersister persister = new InstantActionPersister();
+//    ActionDispatcher dispatcher = buildDispatcher(persister);
 //
 //    final CountDownLatch latch = new CountDownLatch(1);
 //

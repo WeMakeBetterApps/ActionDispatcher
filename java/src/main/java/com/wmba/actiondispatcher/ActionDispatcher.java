@@ -96,8 +96,7 @@ public class ActionDispatcher {
   public void startPersistentActions() {
     synchronized (mPersistentLock) {
 
-      boolean persistentActionsLoaded = mPersistedActions != null;
-      if (persistentActionsLoaded) {
+      if (arePersistentActionsLoaded()) {
 
         for (PersistedActionHolder holder : mPersistedActions) {
 
@@ -124,6 +123,10 @@ public class ActionDispatcher {
     }
   }
 
+  public boolean arePersistentActionsLoaded() {
+    return mPersistedActions != null;
+  }
+
   public Set<String> getActiveKeys() {
     return mExecutorCache.getActiveKeys();
   }
@@ -138,6 +141,10 @@ public class ActionDispatcher {
     private final Action<T> mAction;
     private final boolean mShouldPersist;
 
+    // Action options that should be used instead of using the action getters so the getters are
+    // only called once.
+    private final boolean mRunIfUnsubscribed;
+
     // Optional member variables that are only used in certain circumstances.
     private Long mPersistedId = null;
 
@@ -145,6 +152,7 @@ public class ActionDispatcher {
       mKey = key;
       mAction = action;
       mShouldPersist = shouldPersist;
+      mRunIfUnsubscribed = action.runIfUnsubscribed();
     }
 
     ExecutionContext(String key, Action<T> action, long persistedId) {
@@ -165,10 +173,10 @@ public class ActionDispatcher {
         }
       };
 
-      if (mPersistedActions == null) {
+      if (!arePersistentActionsLoaded()) {
         // Persistent Actions haven't loaded
         synchronized (mPersistentLock) {
-          if (mPersistedActions == null) {
+          if (!arePersistentActionsLoaded()) {
             if (mQueuedActionExecutors == null) {
               mQueuedActionExecutors = new ArrayList<ExecutorService>();
               mQueuedActionRunnables = new ArrayList<Runnable>();
@@ -246,7 +254,7 @@ public class ActionDispatcher {
       if (mActionLogger != null) mActionLogger.logDebug("Running Action " + mAction.getClass().getName() + ".");
 
       do {
-        if (mAction.runIfUnsubscribed() || mAction.isUnsubscribed()) {
+        if (mRunIfUnsubscribed || mAction.isUnsubscribed()) {
 
           if (count > 0) mAction.preRetry();
 
@@ -256,8 +264,8 @@ public class ActionDispatcher {
             completed = true;
           } catch (Throwable t) {
             boolean shouldRetry = mAction.shouldRetryForThrowable(t);
-            count ++;
-            if (mActionLogger != null) mActionLogger.logDebug("Error running Action " + mAction.getClass().getName() + "."
+            count++;
+            if (mActionLogger != null) mActionLogger.logDebug("Error running Action " + mAction.getClass().getName() + ". "
                 + (shouldRetry ? ("Retrying. #" + count) : "Not Retrying") + ".");
 
             if (shouldRetry) {

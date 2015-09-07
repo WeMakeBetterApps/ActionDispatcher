@@ -13,23 +13,23 @@ import java.util.concurrent.atomic.AtomicLong;
 
 import static org.junit.Assert.*;
 
-public class TestActionPersister implements ActionPersister {
+public class InstantActionPersister implements ActionPersister {
   private AtomicLong mIdGenerator = new AtomicLong(0);
   private Map<Action<?>, Long> mSavedActions = new HashMap<Action<?>, Long>();
 
-  @Override public long persist(Action<?> action) {
+  @Override public synchronized long persist(Action<?> action) {
     assertFalse(isPersisted(action));
     long id = mIdGenerator.getAndIncrement();
     mSavedActions.put(action, id);
     return id;
   }
 
-  @Override public void update(long id, Action<?> action) {
+  @Override public synchronized void update(long id, Action<?> action) {
     assertTrue(mSavedActions.containsKey(action));
     mSavedActions.put(action, id);
   }
 
-  @Override public void delete(long id) {
+  @Override public synchronized void delete(long id) {
     Action action = null;
     for (Map.Entry<Action<?>, Long> entry: mSavedActions.entrySet()) {
       if (entry.getValue().equals(id)) {
@@ -42,11 +42,11 @@ public class TestActionPersister implements ActionPersister {
     mSavedActions.remove(action);
   }
 
-  public boolean isPersisted(Action<?> action) {
+  public synchronized  boolean isPersisted(Action<?> action) {
     return mSavedActions.containsKey(action);
   }
 
-  @Override public List<PersistedActionHolder> getPersistedActions() {
+  @Override public synchronized List<PersistedActionHolder> getPersistedActions() {
     Set<Map.Entry<Action<?>, Long>> entries = mSavedActions.entrySet();
     List<PersistedActionHolder> persistedActions = new ArrayList<PersistedActionHolder>(entries.size());
     for (Map.Entry<Action<?>, Long> entry : entries) {
