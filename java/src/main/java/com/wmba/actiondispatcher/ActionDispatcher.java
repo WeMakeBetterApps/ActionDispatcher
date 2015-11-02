@@ -45,28 +45,37 @@ public class ActionDispatcher {
       ExecutorService executor = mExecutorCache.getExecutorForKey(KeySelector.ASYNC_KEY);
       executor.execute(new Runnable() {
         @Override public void run() {
-          List<PersistedActionHolder> persistedActions = mActionPersister.getPersistedActions();
-          if (persistedActions == null) {
-            persistedActions = new ArrayList<PersistedActionHolder>(0);
-          }
-
-          if (mActionLogger != null)
-            mActionLogger.logDebug("Loaded " + persistedActions.size() + " persistent Actions");
-
-          synchronized (mPersistentLock) {
-            mPersistedActions = persistedActions;
-            if (mPendingRunPersistentActions) {
-              startPersistentActions();
+          try {
+            List<PersistedActionHolder> persistedActions = mActionPersister.getPersistedActions();
+            if (persistedActions == null) {
+              persistedActions = new ArrayList<PersistedActionHolder>(0);
             }
 
-            if (mQueuedActionExecutors != null) {
-              for (int i = 0, size = mQueuedActionExecutors.size(); i < size; i++) {
-                ExecutorService executor = mQueuedActionExecutors.get(i);
-                Runnable runnable = mQueuedActionRunnables.get(i);
-                executor.execute(runnable);
+            if (mActionLogger != null)
+              mActionLogger.logDebug("Loaded " + persistedActions.size() + " persistent Actions");
+
+            synchronized (mPersistentLock) {
+              mPersistedActions = persistedActions;
+              if (mPendingRunPersistentActions) {
+                startPersistentActions();
               }
-              mQueuedActionExecutors = null;
-              mQueuedActionRunnables = null;
+
+              dispatchQueuedActions();
+            }
+          } catch (Throwable t) {
+            logOrPrintError(t, "Error running persisted Actions");
+
+            try {
+              mActionPersister.deleteAll();
+            } catch (Throwable t2) {
+              logOrPrintError(t2, "Error deleting all persisted actions.");
+            }
+
+            synchronized (mPersistentLock) {
+              if (mPersistedActions == null) {
+                dispatchQueuedActions();
+                mPersistedActions = new ArrayList<PersistedActionHolder>(0);
+              }
             }
           }
         }
@@ -75,6 +84,18 @@ public class ActionDispatcher {
       synchronized (mPersistentLock) {
         mPersistedActions = new ArrayList<PersistedActionHolder>(0);
       }
+    }
+  }
+
+  private void dispatchQueuedActions() {
+    if (mQueuedActionExecutors != null) {
+      for (int i = 0, size = mQueuedActionExecutors.size(); i < size; i++) {
+        ExecutorService executor = mQueuedActionExecutors.get(i);
+        Runnable runnable = mQueuedActionRunnables.get(i);
+        executor.execute(runnable);
+      }
+      mQueuedActionExecutors = null;
+      mQueuedActionRunnables = null;
     }
   }
 
@@ -114,7 +135,7 @@ public class ActionDispatcher {
 
         if (mActionLogger != null) mActionLogger.logDebug("Persistent Actions started");
 
-        mPersistedActions.clear();
+        mPersistedActions = new ArrayList<PersistedActionHolder>(0);
         mPendingRunPersistentActions = false;
       } else {
         mPendingRunPersistentActions = true;
@@ -134,6 +155,15 @@ public class ActionDispatcher {
   /* package */ <T> T subscribeBlocking(SubscriptionContext subscriptionContext, Action<T> action) throws Throwable {
     ExecutionContext<T> executionContext = new ExecutionContext<T>(null, action, false);
     return executionContext.runAction(subscriptionContext);
+  }
+
+  private void logOrPrintError(Throwable t, String message) {
+    if (mActionLogger == null) {
+      System.out.println("Action Dispatcher Error: " + message);
+      t.printStackTrace();
+    } else {
+      mActionLogger.logError(t, message);
+    }
   }
 
   private class ExecutionContext<T> implements Single.OnSubscribe<T> {
@@ -219,8 +249,7 @@ public class ActionDispatcher {
       try {
         if (mActionPreparer != null) mActionPreparer.prepare(mAction);
       } catch (Throwable t) {
-        if (mActionLogger != null)
-          mActionLogger.logError(t, "Error while preparing Action " + mAction.getClass().getName());
+        logOrPrintError(t, "Error while preparing Action " + mAction.getClass().getName());
       }
       mAction.prepare();
     }
@@ -229,8 +258,7 @@ public class ActionDispatcher {
       try {
         mPersistedId = mActionPersister.persist(mAction);
       } catch (Throwable t) {
-        if (mActionLogger != null)
-          mActionLogger.logError(t, "Error while persisting Action " + mAction.getClass().getName());
+        logOrPrintError(t, "Error while persisting Action " + mAction.getClass().getName());
       }
     }
 
@@ -238,8 +266,7 @@ public class ActionDispatcher {
       try {
         mActionPersister.update(mPersistedId, mAction);
       } catch (Throwable t) {
-        if (mActionLogger != null)
-          mActionLogger.logError(t, "Error while persisting update for Action " + mAction.getClass().getName());
+        logOrPrintError(t, "Error while persisting update for Action " + mAction.getClass().getName());
       }
     }
 

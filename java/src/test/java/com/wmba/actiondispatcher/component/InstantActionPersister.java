@@ -42,7 +42,7 @@ public class InstantActionPersister implements ActionPersister {
     mSavedActions.remove(action);
   }
 
-  public synchronized  boolean isPersisted(Action<?> action) {
+  public synchronized boolean isPersisted(Action<?> action) {
     return mSavedActions.containsKey(action);
   }
 
@@ -53,5 +53,10 @@ public class InstantActionPersister implements ActionPersister {
       persistedActions.add(new PersistedActionHolder(entry.getValue(), entry.getKey()));
     }
     return persistedActions;
+  }
+
+  @Override public synchronized void deleteAll() {
+    mSavedActions.clear();
+    mIdGenerator.set(0);
   }
 }

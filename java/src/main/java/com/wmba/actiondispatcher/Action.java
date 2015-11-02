@@ -4,7 +4,7 @@ import rx.Scheduler;
 
 public abstract class Action<T> {
   private transient SubscriptionContext mSubscriptionContext = null;
-  private int mRetryCount = 0;
+  private int mRetryCount = -1;
 
   /**
    * Called once before the action is run, allowing some setup / preparation to be done on the

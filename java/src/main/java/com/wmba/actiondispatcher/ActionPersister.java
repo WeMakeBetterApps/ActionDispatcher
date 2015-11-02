@@ -11,4 +11,9 @@ public interface ActionPersister {
   void update(long id, Action<?> action);
   void delete(long id);
   List<PersistedActionHolder> getPersistedActions();
+
+  /**
+   * Delete all persisted actions.
+   */
+  void deleteAll();
 }

@@ -6,7 +6,7 @@ import java.util.concurrent.atomic.AtomicInteger;
 
 import rx.observers.TestSubscriber;
 
-import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.*;
 
 public class RetryTests {
   @Test public void retryTest() {
@@ -32,7 +32,7 @@ public class RetryTests {
       @Override public void preRetry() {
         super.preRetry();
         checkThread();
-        assertEquals(getRetryCount(), preRetryCount.incrementAndGet());
+        assertEquals(getRetryCount() + 1, preRetryCount.incrementAndGet());
       }
 
       @Override public Boolean execute() throws Throwable {
@@ -73,8 +73,8 @@ public class RetryTests {
     ts.awaitTerminalEvent();
 
     assertEquals(1, prepareCount.get());
-    assertEquals(totalRunCount - 1, preRetryCount.get());
-    assertEquals(totalRunCount, executeCount.get());
-    assertEquals(totalRunCount, shouldRetryForThrowableCount.get());
+    assertEquals(totalRunCount, preRetryCount.get());
+    assertEquals(totalRunCount + 1, executeCount.get());
+    assertEquals(totalRunCount + 1, shouldRetryForThrowableCount.get());
   }
 }
