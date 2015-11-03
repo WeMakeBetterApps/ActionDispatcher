@@ -1,7 +1,7 @@
 package com.wmba.actiondispatcher.component;
 
 import com.wmba.actiondispatcher.Action;
-import com.wmba.actiondispatcher.PersistedActionHolder;
+import com.wmba.actiondispatcher.persist.PersistedActionHolder;
 
 import java.util.List;
 

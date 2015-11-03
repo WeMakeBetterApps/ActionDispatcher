@@ -2,6 +2,7 @@ package com.wmba.actiondispatcher;
 
 import com.wmba.actiondispatcher.component.InstantActionPersister;
 import com.wmba.actiondispatcher.component.SimpleAction;
+import com.wmba.actiondispatcher.persist.PersistedActionHolder;
 
 import org.junit.Test;
 
@@ -11,11 +12,7 @@ import java.util.List;
 import static org.junit.Assert.*;
 import static org.mockito.Mockito.*;
 
-public class HardnessTests {
-  private ActionDispatcher createDispatcher() {
-    return new ActionDispatcher.Builder().build();
-  }
-
+public class ResilienceTests {
   @Test public void handleExceptionRetrievingActions() {
     InstantActionPersister persister = mock(InstantActionPersister.class, CALLS_REAL_METHODS);
     doThrow(new RuntimeException("getPersistedActions() Error")).when(persister).getPersistedActions();

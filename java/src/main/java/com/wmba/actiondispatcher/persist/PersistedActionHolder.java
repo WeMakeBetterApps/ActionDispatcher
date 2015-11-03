@@ -1,4 +1,6 @@
-package com.wmba.actiondispatcher;
+package com.wmba.actiondispatcher.persist;
+
+import com.wmba.actiondispatcher.Action;
 
 public class PersistedActionHolder {
   private final long mActionId;

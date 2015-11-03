@@ -1,10 +1,8 @@
 //package com.wmba.actiondispatcher.old;
 //
 //import com.wmba.actiondispatcher.Action;
-//import com.wmba.actiondispatcher.component.ActionKeySelector;
-//import com.wmba.actiondispatcher.component.ActionPauser;
-//import com.wmba.actiondispatcher.component.ActionRunnable;
-//import com.wmba.actiondispatcher.component.ActionRunner;
+//import com.wmba.actiondispatcher.ActionDispatcher;
+//import com.wmba.actiondispatcher.KeySelector;
 //
 //import org.junit.Before;
 //import org.junit.Test;
@@ -17,62 +15,23 @@
 //
 //import rx.functions.Action1;
 //
-//import static org.junit.Assert.assertEquals;
-//import static org.junit.Assert.assertFalse;
-//import static org.junit.Assert.assertNotEquals;
-//import static org.junit.Assert.assertNotNull;
-//import static org.junit.Assert.assertTrue;
+//import static org.junit.Assert.*;
 //
 //
 //public class ActionDispatcherTest {
 //
-//  private JavaActionDispatcher mNormalActionDispatcher;
-//  private JavaActionDispatcher mRunnerActionDispatcher;
+//  private ActionDispatcher mDispatcher;
 //
-//  @Before
-//  public void beforeTest() {
-//    mNormalActionDispatcher = new JavaActionDispatcher.Builder().build();
-//    mRunnerActionDispatcher = new JavaActionDispatcher.Builder()
-//        .actionRunner(new ActionRunner() {
-//          @Override
-//          public void execute(ActionRunnable actionRunnable, Action[] actions) {
-//            assertNotNull(actions);
-//
-//            for (Action action : actions) {
-//              assertNotNull(action);
-//            }
-//
-//            try {
-//              actionRunnable.execute();
-//            } catch (Throwable throwable) {
-//              throw new RuntimeException(throwable);
-//            }
-//          }
-//        })
-//        .keySelector(new ActionKeySelector() {
-//          @Override public String getKey(Action... actions) {
-//            assertNotNull(actions);
-//
-//            for (Action action : actions) {
-//              assertNotNull(action);
-//            }
-//
-//            return ActionKeySelector.DEFAULT_KEY;
-//          }
-//        })
-//        .pauser(new ActionPauser() {
-//          @Override public boolean shouldPauseForAction(Action action) {
-//            assertNotNull(action);
-//            return false;
-//          }
-//        })
-//        .build();
+//  @Before public void beforeTest() {
+//    mDispatcher = new ActionDispatcher.Builder().build();
 //  }
 //
 //  @Test
 //  public void asyncSingleTest() {
-//    asyncSingleTest(mNormalActionDispatcher);
-//    asyncSingleTest(mRunnerActionDispatcher);
+//    Object response = mDispatcher.toSingle(new TestAction())
+//        .toBlocking()
+//        .first();
+//    assertNotNull(response);
 //  }
 //
 //  private void asyncSingleTest(JavaActionDispatcher actionDispatcher) {
