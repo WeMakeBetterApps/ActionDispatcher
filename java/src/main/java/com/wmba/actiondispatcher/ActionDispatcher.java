@@ -7,6 +7,7 @@ import java.util.List;
 import java.util.Set;
 import java.util.concurrent.ExecutorService;
 
+import rx.Observable;
 import rx.Scheduler;
 import rx.Single;
 import rx.SingleSubscriber;
@@ -114,6 +115,19 @@ public class ActionDispatcher {
     Single<T> single = Single.create(new ExecutionContext(key, action, action.isPersistent()));
     Scheduler scheduler = action.observeOn();
     return (scheduler == null) ? single : single.observeOn(scheduler);
+  }
+
+  public <T> Observable<T> toObservable(Action<T> action) {
+    return toObservable(mKeySelector.getKey(action), action);
+  }
+
+  public <T> Observable<T> toObservableAsync(Action<T> action) {
+    return toObservable(KeySelector.ASYNC_KEY, action);
+  }
+
+  public <T> Observable<T> toObservable(String key, Action<T> action) {
+    //noinspection unchecked
+    return toSingle(key, action).toObservable();
   }
 
   public void startPersistentActions() {
