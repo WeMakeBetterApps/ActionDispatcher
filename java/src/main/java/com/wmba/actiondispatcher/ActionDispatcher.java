@@ -111,8 +111,9 @@ public class ActionDispatcher {
   }
 
   public <T> Single<T> toSingle(String key, Action<T> action) {
+    String checkedKey = (key == null) ? KeySelector.DEFAULT_KEY : key;
     //noinspection unchecked
-    Single<T> single = Single.create(new ExecutionContext(key, action, action.isPersistent()));
+    Single<T> single = Single.create(new ExecutionContext(checkedKey, action, action.isPersistent()));
     Scheduler scheduler = action.observeOn();
     return (scheduler == null) ? single : single.observeOn(scheduler);
   }
@@ -130,6 +131,9 @@ public class ActionDispatcher {
     return toSingle(key, action).toObservable();
   }
 
+  /**
+   * Loads the persistent Actions and queues them
+   */
   public void startPersistentActions() {
     synchronized (mPersistentLock) {
 
@@ -137,15 +141,27 @@ public class ActionDispatcher {
 
         for (PersistedActionHolder holder : mPersistedActions) {
 
-          long persistedId = holder.getActionId();
-          Action<?> action = holder.getAction();
-          String key = mKeySelector.getKey(action);
-          //noinspection unchecked
-          Single.create(new ExecutionContext(key, action, persistedId))
-              .subscribe(new SingleSubscriber() {
-                @Override public void onSuccess(Object value) {}
-                @Override public void onError(Throwable error) {}
-              });
+          try {
+            long persistedId = holder.getActionId();
+            Action<?> action = holder.getAction();
+            String key = mKeySelector.getKey(action);
+            if (action != null) {
+              //noinspection unchecked
+              Single.create(new ExecutionContext(key, action, persistedId))
+                  .subscribe(new SingleSubscriber() {
+                    @Override public void onSuccess(Object value) {}
+                    @Override public void onError(Throwable error) {}
+                  });
+            }
+          } catch (Throwable t) {
+            logOrPrintError(t, "Error running persisted Actions");
+
+            try {
+              mActionPersister.deleteAll();
+            } catch (Throwable t2) {
+              logOrPrintError(t2, "Error deleting all persisted actions.");
+            }
+          }
 
         }
 
