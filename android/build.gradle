@@ -5,7 +5,6 @@ apply plugin: 'signing'
 repositories {
     mavenLocal()
     mavenCentral()
-    jcenter()
 }
 
 configurations { providedCompile }
