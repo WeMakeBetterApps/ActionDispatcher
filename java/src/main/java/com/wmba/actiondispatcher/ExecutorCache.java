@@ -3,17 +3,17 @@ package com.wmba.actiondispatcher;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.Set;
-import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executor;
 import java.util.concurrent.Executors;
 import java.util.concurrent.ThreadFactory;
 import java.util.concurrent.atomic.AtomicLong;
 
 /* package */ class ExecutorCache {
-  private final Map<String, ExecutorService> mCache = new HashMap<String, ExecutorService>();
+  private final Map<String, Executor> mCache = new HashMap<String, Executor>();
 
-  public ExecutorService getExecutorForKey(final String key) {
+  Executor getExecutorForKey(final String key) {
     synchronized (mCache) {
-      ExecutorService executor = mCache.get(key);
+      Executor executor = mCache.get(key);
 
       if (executor == null) {
         if (KeySelector.ASYNC_KEY.equals(key)) {
@@ -27,7 +27,7 @@ import java.util.concurrent.atomic.AtomicLong;
             }
           });
         } else {
-          executor = Executors.newCachedThreadPool(new ThreadFactory() {
+          executor = Executors.newSingleThreadExecutor(new ThreadFactory() {
             @Override public Thread newThread(Runnable r) {
               Thread t = new Thread(r, "ActionDispatcherThread-" + key);
               t.setPriority(Thread.MIN_PRIORITY);
@@ -41,6 +41,12 @@ import java.util.concurrent.atomic.AtomicLong;
       }
 
       return executor;
+    }
+  }
+
+  void setExecutor(Executor executor, String key) {
+    synchronized (mCache) {
+      mCache.put(key, executor);
     }
   }
 

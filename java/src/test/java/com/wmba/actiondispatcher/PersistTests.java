@@ -34,12 +34,12 @@ public class PersistTests {
     dispatcher.startPersistentActions();
 
     TestSubscriber<Boolean> ts = new TestSubscriber<Boolean>();
-    dispatcher.toSingle("separateThread", new SimpleAction() {
+    dispatcher.toSingle(new SimpleAction() {
       @Override public Boolean execute() throws Throwable {
         assertEquals(2, count.incrementAndGet());
         return super.execute();
       }
-    }).subscribe(ts);
+    }, "separateThread").subscribe(ts);
     ts.awaitTerminalEvent();
 
     assertFalse(persister.isPersisted(action));

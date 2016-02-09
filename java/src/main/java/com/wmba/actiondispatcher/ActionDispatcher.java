@@ -3,9 +3,11 @@ package com.wmba.actiondispatcher;
 import com.wmba.actiondispatcher.persist.PersistedActionHolder;
 
 import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 import java.util.Set;
-import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executor;
 
 import rx.Observable;
 import rx.Scheduler;
@@ -34,19 +36,23 @@ public class ActionDispatcher {
    * first starting. Both of these lists are kept in sync, and always modified under the
    * mPersistentLock.
    */
-  private List<ExecutorService> mQueuedActionExecutors = null;
+  private List<Executor> mQueuedActionExecutors = null;
   private List<Runnable> mQueuedActionRunnables = null;
 
   public ActionDispatcher(KeySelector keySelector, ActionPreparer actionPreparer,
       ActionLogger actionLogger, ActionPersister actionPersister,
-      final boolean delayPersistentActionLoading) {
+      Map<String, Executor> executorMap, final boolean delayPersistentActionLoading) {
     mKeySelector = keySelector;
     mActionPreparer = actionPreparer;
     mActionLogger = actionLogger;
     mActionPersister = actionPersister;
 
+    for (Map.Entry<String, Executor> entry : executorMap.entrySet()) {
+      mExecutorCache.setExecutor(entry.getValue(), entry.getKey());
+    }
+
     if (mActionPersister != null) {
-      ExecutorService executor = mExecutorCache.getExecutorForKey(KeySelector.ASYNC_KEY);
+      Executor executor = mExecutorCache.getExecutorForKey(KeySelector.ASYNC_KEY);
       executor.execute(new Runnable() {
         @Override public void run() {
           try {
@@ -94,7 +100,7 @@ public class ActionDispatcher {
   private void dispatchQueuedActions() {
     if (mQueuedActionExecutors != null) {
       for (int i = 0, size = mQueuedActionExecutors.size(); i < size; i++) {
-        ExecutorService executor = mQueuedActionExecutors.get(i);
+        Executor executor = mQueuedActionExecutors.get(i);
         Runnable runnable = mQueuedActionRunnables.get(i);
         executor.execute(runnable);
       }
@@ -104,32 +110,60 @@ public class ActionDispatcher {
   }
 
   public <T> Single<T> toSingle(Action<T> action) {
-    return toSingle(mKeySelector.getKey(action), action);
+    return toSingle(action, mKeySelector.getKey(action), null);
   }
 
   public <T> Single<T> toSingleAsync(Action<T> action) {
-    return toSingle(KeySelector.ASYNC_KEY, action);
+    return toSingle(action, KeySelector.ASYNC_KEY, null);
   }
 
-  public <T> Single<T> toSingle(String key, Action<T> action) {
+  public <T> Single<T> toSingleAsync(Action<T> action, Scheduler observeOn) {
+    return toSingle(action, KeySelector.ASYNC_KEY, observeOn);
+  }
+
+  public <T> Single<T> toSingle(Action<T> action, String key) {
+    return toSingle(action, key, null);
+  }
+
+  public <T> Single<T> toSingle(Action<T> action, Scheduler observeOn) {
+    return toSingle(action, null, observeOn);
+  }
+
+  public <T> Single<T> toSingle(Action<T> action, String key, Scheduler observeOn) {
     String checkedKey = (key == null) ? KeySelector.DEFAULT_KEY : key;
     //noinspection unchecked
     Single<T> single = Single.create(new ExecutionContext(checkedKey, action, action.isPersistent()));
-    Scheduler scheduler = action.observeOn();
-    return (scheduler == null) ? single : single.observeOn(scheduler);
+    if (observeOn == null) {
+      Scheduler actionObserveOn = action.observeOn();
+      return (actionObserveOn == null) ? single : single.observeOn(actionObserveOn);
+    } else {
+      return single.observeOn(observeOn);
+    }
   }
 
   public <T> Observable<T> toObservable(Action<T> action) {
-    return toObservable(mKeySelector.getKey(action), action);
+    return toObservable(action, mKeySelector.getKey(action), null);
   }
 
   public <T> Observable<T> toObservableAsync(Action<T> action) {
-    return toObservable(KeySelector.ASYNC_KEY, action);
+    return toObservable(action, KeySelector.ASYNC_KEY, null);
   }
 
-  public <T> Observable<T> toObservable(String key, Action<T> action) {
+  public <T> Observable<T> toObservableAsync(Action<T> action, Scheduler observeOn) {
+    return toObservable(action, KeySelector.ASYNC_KEY, observeOn);
+  }
+
+  public <T> Observable<T> toObservable(Action<T> action, String key) {
+    return toObservable(action, key, null);
+  }
+
+  public <T> Observable<T> toObservable(Action<T> action, Scheduler observeOn) {
+    return toObservable(action, null, observeOn);
+  }
+
+  public <T> Observable<T> toObservable(Action<T> action, String key, Scheduler observeOn) {
     //noinspection unchecked
-    return toSingle(key, action).toObservable();
+    return toSingle(action, key, observeOn).toObservable();
   }
 
   /**
@@ -188,6 +222,14 @@ public class ActionDispatcher {
     return mExecutorCache.getActiveKeys();
   }
 
+  public Executor getExecutor(String key) {
+    return mExecutorCache.getExecutorForKey(key);
+  }
+
+  public Executor getAsyncExecutor() {
+    return mExecutorCache.getExecutorForKey(KeySelector.ASYNC_KEY);
+  }
+
   /* package */ <T> T subscribeBlocking(SubscriptionContext subscriptionContext, Action<T> action) throws Throwable {
     ExecutionContext<T> executionContext = new ExecutionContext<T>(null, action, false);
     return executionContext.runAction(subscriptionContext);
@@ -227,7 +269,7 @@ public class ActionDispatcher {
     }
 
     @Override public void call(final SingleSubscriber<? super T> subscriber) {
-      ExecutorService executor = mExecutorCache.getExecutorForKey(mKey);
+      Executor executor = mExecutorCache.getExecutorForKey(mKey);
       Runnable runnable = new Runnable() {
         @Override public void run() {
           try {
@@ -244,7 +286,7 @@ public class ActionDispatcher {
         synchronized (mPersistentLock) {
           if (!arePersistentActionsLoaded()) {
             if (mQueuedActionExecutors == null) {
-              mQueuedActionExecutors = new ArrayList<ExecutorService>();
+              mQueuedActionExecutors = new ArrayList<Executor>();
               mQueuedActionRunnables = new ArrayList<Runnable>();
             }
 
@@ -351,6 +393,7 @@ public class ActionDispatcher {
     private ActionPreparer mActionPreparer = null;
     private ActionLogger mActionLogger = null;
     private ActionPersister mActionPersister = null;
+    private Map<String, Executor> mExecutorMap = null;
     private boolean mDelayPersistentActionLoading = false;
 
     public ActionDispatcher build() {
@@ -359,6 +402,7 @@ public class ActionDispatcher {
           mActionPreparer,
           mActionLogger,
           mActionPersister,
+          mExecutorMap,
           mDelayPersistentActionLoading
       );
     }
@@ -383,6 +427,20 @@ public class ActionDispatcher {
       return this;
     }
 
+    public ActionDispatcher.Builder withExecutor(String key, Executor executor) {
+      if (mExecutorMap == null) {
+        mExecutorMap = new HashMap<String, Executor>(5);
+      }
+
+      mExecutorMap.put(key, executor);
+
+      return this;
+    }
+
+    /**
+     * Call to delay the running of persisted Actions, until
+     * {@link ActionDispatcher#startPersistentActions()} is called.
+     */
     public ActionDispatcher.Builder delayPersistentActionLoading() {
       mDelayPersistentActionLoading = true;
       return this;
