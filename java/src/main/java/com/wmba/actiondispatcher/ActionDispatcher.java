@@ -47,8 +47,10 @@ public class ActionDispatcher {
     mActionLogger = actionLogger;
     mActionPersister = actionPersister;
 
-    for (Map.Entry<String, Executor> entry : executorMap.entrySet()) {
-      mExecutorCache.setExecutor(entry.getValue(), entry.getKey());
+    if (executorMap != null) {
+      for (Map.Entry<String, Executor> entry : executorMap.entrySet()) {
+        mExecutorCache.setExecutor(entry.getValue(), entry.getKey());
+      }
     }
 
     if (mActionPersister != null) {
