@@ -5,6 +5,7 @@ apply plugin: 'signing'
 repositories {
     mavenLocal()
     mavenCentral()
+    jcenter()
 }
 
 configurations { providedCompile }
@@ -18,7 +19,6 @@ version = '1.0.0-SNAPSHOT'
 dependencies {
     compile project(':java')
 
-    providedCompile 'io.reactivex:rxandroid:0.25.0'
     providedCompile 'com.google.android:android:4.1.1.4'
     providedCompile files('libs/*.jar')
 
