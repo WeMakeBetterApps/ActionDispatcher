@@ -17,7 +17,7 @@ public class ActionSqlOpenHelper extends SQLiteOpenHelper {
   /*package*/ static final String COLUMN_SERIALIZED_ACTION = "serialized_action";
 
   private static final String DB_NAME = "ActionDispatcherPersistentQueue.sqlite";
-  private static final int DB_VERSION = 1;
+  private static final int DB_VERSION = 2;
 
   private final SQLiteDatabase mDB;
 
