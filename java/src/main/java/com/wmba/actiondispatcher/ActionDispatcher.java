@@ -38,7 +38,8 @@ public class ActionDispatcher {
   private List<Runnable> mQueuedActionRunnables = null;
 
   public ActionDispatcher(KeySelector keySelector, ActionPreparer actionPreparer,
-                          ActionLogger actionLogger, ActionPersister actionPersister) {
+      ActionLogger actionLogger, ActionPersister actionPersister,
+      final boolean delayPersistentActionLoading) {
     mKeySelector = keySelector;
     mActionPreparer = actionPreparer;
     mActionLogger = actionLogger;
@@ -59,7 +60,7 @@ public class ActionDispatcher {
 
             synchronized (mPersistentLock) {
               mPersistedActions = persistedActions;
-              if (mPendingRunPersistentActions) {
+              if (mPendingRunPersistentActions || !delayPersistentActionLoading) {
                 startPersistentActions();
               }
 
@@ -132,6 +133,9 @@ public class ActionDispatcher {
   }
 
   /**
+   * This does nothing unless {@link Builder#delayPersistentActionLoading()} is called at
+   * {@link ActionDispatcher} creation.
+   *
    * Loads the persistent Actions and queues them
    */
   public void startPersistentActions() {
@@ -347,13 +351,15 @@ public class ActionDispatcher {
     private ActionPreparer mActionPreparer = null;
     private ActionLogger mActionLogger = null;
     private ActionPersister mActionPersister = null;
+    private boolean mDelayPersistentActionLoading = false;
 
     public ActionDispatcher build() {
       return new ActionDispatcher(
           mKeySelector != null ? mKeySelector : new KeySelector(),
           mActionPreparer,
           mActionLogger,
-          mActionPersister
+          mActionPersister,
+          mDelayPersistentActionLoading
       );
     }
 
@@ -374,6 +380,11 @@ public class ActionDispatcher {
 
     public ActionDispatcher.Builder withActionPersister(ActionPersister actionPersister) {
       mActionPersister = actionPersister;
+      return this;
+    }
+
+    public ActionDispatcher.Builder delayPersistentActionLoading() {
+      mDelayPersistentActionLoading = true;
       return this;
     }
   }
