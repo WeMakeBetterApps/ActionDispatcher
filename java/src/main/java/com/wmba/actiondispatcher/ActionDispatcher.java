@@ -247,16 +247,16 @@ public class ActionDispatcher {
   }
 
   private class ExecutionContext<T> implements Single.OnSubscribe<T> {
-    private final String mKey;
-    private final Action<T> mAction;
-    private final boolean mShouldPersist;
+    final String mKey;
+    final Action<T> mAction;
+    final boolean mShouldPersist;
 
     // Action options that should be used instead of using the action getters so the getters are
     // only called once.
-    private final boolean mRunIfUnsubscribed;
+    final boolean mRunIfUnsubscribed;
 
     // Optional member variables that are only used in certain circumstances.
-    private Long mPersistedId = null;
+    Long mPersistedId = null;
 
     ExecutionContext(String key, Action<T> action, boolean shouldPersist) {
       mKey = key;
