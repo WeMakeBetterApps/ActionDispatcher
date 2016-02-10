@@ -3,87 +3,78 @@ ActionDispatcher
 
 ### Usage
 ```groovy
-// You need the latest version of RXJava 1.0+, or the latest version of RXAndroid
-compile 'io.reactivex:rxandroid:0.23.0'
+// You need the latest version of RxJava 1.0+, or the latest version of RxAndroid
+compile 'io.reactivex:rxandroid:1.1.0'
+compile 'io.reactivex:rxjava:1.1.0'
 
 //actiondispatcher-java for java only, actiondispatcher-android for android.
-compile 'com.wemakebetterapps:actiondispatcher-android:0.7.4'
+compile 'com.wemakebetterapps:actiondispatcher-android:1.0.0'
 ```
 
 
 ### Creation
 
-In most cases for Android, the default AndroidActionDispatcher with a few custom components should be enough:
+In most cases for Android, the default ActionDispatcher with a few custom components should be enough:
 
 ```java
-ActionDispatcher dispatcher = new AndroidActionDispatcher.Builder(context)
-        .injector(new ActionDispatcher.ActionInjector() {
-          @Override public void inject(Action action) {
-            // TODO: Your method of injection here.
-            Injector.inject(action);
-          }
-        })
-        .actionRunner(new ActionDispatcher.ActionRunner() {
-          @Override
-          public void execute(final ActionDispatcher.ActionRunnable actionRunnable, Action[] actions) {
-            // TODO: This would be the place to run the action in a Database Session should you have one.
-            daoSession.runInTx(new Runnable() {
-              @Override public void run() {
-                actionRunnable.execute();
-              }
-            });
-          }
-        })
-        .build();
+new ActionDispatcher.Builder()
+    .withActionLogger(new ActionLogger() {
+      @Override public void logDebug(String message) {
+        Log.d("ActionDispatcher", message);
+      }
+
+      @Override public void logError(Throwable t, String message) {
+        Log.e("ActionDispatcher", message, t);
+      }
+    })
+    .build();
 ```
 
 ### Actions
 
-`Action` are how we divide up our asyncronous work. There are 2 main type of `Action`: `ComposableAction` and `NetworkAction`.
+`Action`s are how we divide up our asyncronous work into object oriented, reusable pieces of code.
+They have their own lifecycle:
 
-##### ComposableAction
-An action that can be grouped together with other `ComposableAction` in the same database transaction. These are well suited to do database work, and should never be used to run network operations. These can also not be persisted.
+![Action Lifecycle](documentation/action_lifecycle.png)
 
-##### SingularAction
-An Action that is run by itself unrelated to other Actions. These can be persisted in a queue to ensure eventual running.
+### Injecting Actions
 
-##### NetworkAction
-A useful Android implementation of SingularAction is the `NetworkAction`. `NetworkAction`s with the default `KeySelector` run in a separate queue from other Actions. This is because `NetworkAction`s will pause running if the network is not available.
+`Action`s can be injected in two different ways. Their is a global approach by providing an 
+`ActionPreparer` to the `ActionDispatcher.Builder`. All `Action`s are presented to the provided
+`ActionPreparer` before being run. Another alternative that allows you to prepare each `Action`
+individually is to override the `Action`#prepare() method. This allows for injecting with 
+non-generic dependency injection frameworks like Dagger 2.
 
-A good practice is to create your own overrided BaseNetworkAction that handles server errors, or other errors by default, so you only have to worry about handling the errors in one place.
+### Choosing a Background Thread
 
-```java
-public abstract class BaseNetworkAction<T> extends NetworkAction<T> {
+A background thread can be selected for an `Action` and overridden in a few different places. Each
+`Action` has a `Thread` chosen for it to executed on when it's provided to the `ActionDispatcher`
+via a unique `String` key. To customize which key is chosen for each `Action` at a global level, a
+`KeySelector` can be provided to the `ActionDispatcher.Builder`. The default `KeySelector` defers 
+the choosing of it's thread key to the `Action`#getKey() method which can be overridden for each
+`Action` if desired.
 
-  public BaseNetworkAction() {
-    super(false);
-  }
+The `KeySelector` can be bypassed by providing a key directly to the `toSingle` or `toObservable`
+methods.
 
-  public BaseNetworkAction(boolean isPersistent) {
-    super(isPersistent);
-  }
+The `toSingleAsync` or `toObservableAsync` methods can also be used to run the Action on the async
+thread key. By default the async thread key differs from the other thread keys by running on an
+unbounded cached thread pool.
 
-  @Override public boolean shouldRetryForThrowable(Throwable throwable, Subscriber<T> subscriber) {
-    Throwable cause = throwable;
-    while (cause.getCause() != null) {
-      cause = cause.getCause();
-    }
+### Providing Executors
 
-    if (cause instanceof RetrofitError) {
-      RetrofitError retrofitError = (RetrofitError) cause;
-      switch (retrofitError.getKind()) {
-        case NETWORK:
-          subscriber.onError(new NetworkException());
-          break;
-        case HTTP:
-          subscriber.onError(new ServerException(retrofitError.getResponse().getStatus()));
-          break;
-        default:
-          break;
-      }
-    }
+Each unique `String` key corresponds to a specific `Executor` that an action can be run on. By
+default, each key corresponds to a single thread executor, except for the async key which runs
+`Action`s on an unbounded cached thread pool.
 
-    return false;
-  }
-}
-```
+This default behavior can be customized by providing an `Executor` to the `ActionDispatcher.Builder`
+via the `withExecutor` method.
+
+Any executor can be accessed directly via the `ActionDispatcher`#getExecutor method.
+
+### Persisting Actions
+
+Certain Actions can be marked as persistent to ensure that they eventually finish running by 
+overriding the `Action`#isPersistent method. When taking this approach, an `ActionPersister` must
+also be provided at `ActionDispatcher` creation. The provided `AndroidActionPersister` will
+handle saving Actions to the Android SQLite database, ensuring they run.
