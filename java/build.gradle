@@ -8,6 +8,9 @@ repositories {
 }
 
 configurations { providedCompile }
+sourceSets.main.compileClasspath += configurations.providedCompile
+sourceSets.test.compileClasspath += configurations.providedCompile
+sourceSets.test.runtimeClasspath += configurations.providedCompile
 
 version = '1.0.0-SNAPSHOT'
 
