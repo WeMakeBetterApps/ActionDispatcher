@@ -1,6 +1,6 @@
 package com.wmba.actiondispatcher.persist;
 
-import com.wmba.actiondispatcher.SingularAction;
+import com.wmba.actiondispatcher.Action;
 
 import java.io.ByteArrayInputStream;
 import java.io.ByteArrayOutputStream;
@@ -10,9 +10,8 @@ import java.io.ObjectOutput;
 import java.io.ObjectOutputStream;
 import java.io.Serializable;
 
-public class JavaActionSerializer implements ActionSerializer {
-
-  @Override public byte[] serialize(SingularAction action) {
+public class JavaActionSerializer {
+  public byte[] serialize(Action<?> action) {
     try {
       return unsafeSerialize(action);
     } catch (Throwable t) {
@@ -23,16 +22,16 @@ public class JavaActionSerializer implements ActionSerializer {
     }
   }
 
-  @Override public <T extends SingularAction> T deserialize(byte[] bytes) {
+  public <T extends Action<?>> T deserialize(byte[] bytes) {
     try {
       return unsafeDeserialize(bytes);
-    } catch (Throwable ignored) {
-      //TODO add a log call
+    } catch (Throwable t) {
+      t.printStackTrace();
     }
     return null;
   }
 
-  private byte[] unsafeSerialize(SingularAction action) throws IOException {
+  private byte[] unsafeSerialize(Action<?> action) throws IOException {
     if (action == null) {
       return null;
     }
@@ -51,7 +50,7 @@ public class JavaActionSerializer implements ActionSerializer {
     }
   }
 
-  private <T extends SingularAction> T unsafeDeserialize(byte[] bytes) throws IOException, ClassNotFoundException {
+  private <T extends Action<?>> T unsafeDeserialize(byte[] bytes) throws IOException, ClassNotFoundException {
     if (bytes == null || bytes.length == 0) {
       return null;
     }
@@ -66,5 +65,5 @@ public class JavaActionSerializer implements ActionSerializer {
       }
     }
   }
-
 }
+

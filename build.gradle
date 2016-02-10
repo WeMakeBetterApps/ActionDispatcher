@@ -1,17 +1,3 @@
-apply plugin: 'java'
-
-repositories {
-    mavenCentral()
-    mavenLocal()
-}
-
-allprojects {
-    repositories {
-        mavenLocal()
-        mavenCentral()
-    }
-}
-
 subprojects {
     group = 'com.wemakebetterapps'
 }

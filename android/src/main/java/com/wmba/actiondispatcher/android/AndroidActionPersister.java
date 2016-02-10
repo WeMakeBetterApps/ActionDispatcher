@@ -2,34 +2,28 @@ package com.wmba.actiondispatcher.android;
 
 import android.content.Context;
 
-import com.wmba.actiondispatcher.persist.ActionPersister;
-import com.wmba.actiondispatcher.persist.ActionSerializer;
+import com.wmba.actiondispatcher.Action;
+import com.wmba.actiondispatcher.ActionPersister;
 import com.wmba.actiondispatcher.persist.JavaActionSerializer;
 import com.wmba.actiondispatcher.persist.PersistedActionHolder;
-import com.wmba.actiondispatcher.SingularAction;
 
+import java.util.ArrayList;
 import java.util.List;
 
 public class AndroidActionPersister implements ActionPersister {
-
   private final ActionSqlOpenHelper mOpenHelper;
-  private final ActionSerializer mSerializer;
+  private final JavaActionSerializer mSerializer = new JavaActionSerializer();
 
   public AndroidActionPersister(Context context) {
-    this(context, new JavaActionSerializer());
+    mOpenHelper = new ActionSqlOpenHelper(context);
   }
 
-  public AndroidActionPersister(Context context, ActionSerializer serializer) {
-    this.mOpenHelper = new ActionSqlOpenHelper(context);
-    this.mSerializer = serializer;
-  }
-
-  @Override public long persist(SingularAction action) {
+  @Override public long persist(Action action) {
     byte[] serializedAction = mSerializer.serialize(action);
     return mOpenHelper.insert(serializedAction);
   }
 
-  @Override public void update(long id, SingularAction action) {
+  @Override public void update(long id, Action action) {
     byte[] serializedAction = mSerializer.serialize(action);
     mOpenHelper.update(id, serializedAction);
   }
@@ -39,18 +33,19 @@ public class AndroidActionPersister implements ActionPersister {
   }
 
   @Override public List<PersistedActionHolder> getPersistedActions() {
-    List<PersistedActionHolder> serializedActions = mOpenHelper.getAllActions();
+    List<ActionSqlOpenHelper.SerializedActionHolder> serializedActions = mOpenHelper.getAllActions();
 
-    for (PersistedActionHolder holder : serializedActions) {
-      SingularAction action = mSerializer.deserialize(holder.getSerializedAction());
-      holder.setPersistedAction(action);
+    List<PersistedActionHolder> deserializedActions =
+        new ArrayList<PersistedActionHolder>(serializedActions.size());
+    for (ActionSqlOpenHelper.SerializedActionHolder holder : serializedActions) {
+      Action action = mSerializer.deserialize(holder.getSerializedAction());
+      deserializedActions.add(new PersistedActionHolder(holder.getId(), action));
     }
 
-    return serializedActions;
+    return deserializedActions;
   }
 
-  public void deleteAllActions() {
+  @Override public void deleteAll() {
     mOpenHelper.deleteAllActions();
   }
-
 }

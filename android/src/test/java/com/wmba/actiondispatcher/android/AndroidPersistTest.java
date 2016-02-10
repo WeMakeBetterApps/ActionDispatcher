@@ -2,8 +2,9 @@ package com.wmba.actiondispatcher.android;
 
 import android.content.Context;
 
+import com.wmba.actiondispatcher.Action;
+import com.wmba.actiondispatcher.ActionDispatcher;
 import com.wmba.actiondispatcher.persist.PersistedActionHolder;
-import com.wmba.actiondispatcher.SingularAction;
 
 import org.junit.Test;
 import org.junit.runner.RunWith;
@@ -11,6 +12,7 @@ import org.robolectric.Robolectric;
 import org.robolectric.RobolectricTestRunner;
 import org.robolectric.annotation.Config;
 
+import java.io.Serializable;
 import java.util.List;
 
 import static org.junit.Assert.assertEquals;
@@ -20,14 +22,14 @@ import static org.junit.Assert.assertTrue;
 @Config(manifest = Config.NONE)
 public class AndroidPersistTest {
 
-  private AndroidActionDispatcher buildDispatcher() {
+  private ActionDispatcher buildDispatcher() {
     Context context = Robolectric.getShadowApplication().getApplicationContext();
-    return new AndroidActionDispatcher.Builder(context)
+    return new ActionDispatcher.Builder()
+        .withActionPersister(new AndroidActionPersister(context))
         .build();
   }
 
-  @Test
-  public void persistTest() {
+  @Test public void persistTest() {
     AndroidActionPersister persister = buildPersister();
     resetDatabase(persister);
 
@@ -37,12 +39,11 @@ public class AndroidPersistTest {
 
     List<PersistedActionHolder> persistedActions = persister.getPersistedActions();
     assertEquals(persistedActions.size(), 1);
-    TestAction persistedAction = (TestAction) persistedActions.get(0).getPersistedAction();
+    TestAction persistedAction = (TestAction) persistedActions.get(0).getAction();
     assertEquals(action.testInt, persistedAction.testInt);
   }
 
-  @Test
-  public void updateTest() {
+  @Test public void updateTest() {
     AndroidActionPersister persister = buildPersister();
     resetDatabase(persister);
 
@@ -52,23 +53,20 @@ public class AndroidPersistTest {
 
     List<PersistedActionHolder> persistedActions = persister.getPersistedActions();
     assertEquals(persistedActions.size(), 1);
-    TestAction persistedAction = (TestAction) persistedActions.get(0).getPersistedAction();
+    TestAction persistedAction = (TestAction) persistedActions.get(0).getAction();
     assertEquals(action.testInt, persistedAction.testInt);
     assertEquals(persistedAction.getRetryCount(), 0);
 
     persistedAction.testInt = 3;
-    persistedAction.incrementRetryCount();
     persister.update(id, persistedAction);
 
     List<PersistedActionHolder> persistedActions2 = persister.getPersistedActions();
     assertEquals(persistedActions2.size(), 1);
-    TestAction persistedAction2 = (TestAction) persistedActions.get(0).getPersistedAction();
+    TestAction persistedAction2 = (TestAction) persistedActions.get(0).getAction();
     assertEquals(persistedAction.testInt, persistedAction2.testInt);
-    assertEquals(persistedAction2.getRetryCount(), 1);
   }
 
-  @Test
-  public void orderTest() {
+  @Test public void orderTest() {
     AndroidActionPersister persister = buildPersister();
     resetDatabase(persister);
 
@@ -81,8 +79,8 @@ public class AndroidPersistTest {
     List<PersistedActionHolder> persistedActions = persister.getPersistedActions();
     assertEquals(persistedActions.size(), 2);
 
-    assertTrue(persistedActions.get(0).getPersistedAction() instanceof TestAction);
-    assertTrue(persistedActions.get(1).getPersistedAction() instanceof TestAction2);
+    assertTrue(persistedActions.get(0).getAction() instanceof TestAction);
+    assertTrue(persistedActions.get(1).getAction() instanceof TestAction2);
   }
 
   private AndroidActionPersister buildPersister() {
@@ -91,33 +89,31 @@ public class AndroidPersistTest {
   }
 
   private void resetDatabase(AndroidActionPersister persister) {
-    persister.deleteAllActions();
+    persister.deleteAll();
     assertEquals(persister.getPersistedActions().size(), 0);
   }
 
-  public static class TestAction extends SingularAction<TestResponse> {
-
+  public static class TestAction extends Action<TestResponse> implements Serializable {
     private int testInt;
-
-    public TestAction() {
-      super(true);
-    }
 
     @Override public TestResponse execute() throws Throwable {
       return new TestResponse();
+    }
+
+    @Override public boolean isPersistent() {
+      return true;
     }
   }
 
-  public static class TestAction2 extends SingularAction<TestResponse> {
-
+  public static class TestAction2 extends Action<TestResponse> implements Serializable {
     private int testInt;
-
-    public TestAction2() {
-      super(true);
-    }
 
     @Override public TestResponse execute() throws Throwable {
       return new TestResponse();
+    }
+
+    @Override public boolean isPersistent() {
+      return true;
     }
   }
 

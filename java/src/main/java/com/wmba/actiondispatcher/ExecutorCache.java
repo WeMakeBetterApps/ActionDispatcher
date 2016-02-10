@@ -1,57 +1,58 @@
 package com.wmba.actiondispatcher;
 
-import com.wmba.actiondispatcher.component.ActionKeySelector;
-
 import java.util.HashMap;
 import java.util.Map;
 import java.util.Set;
-import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executor;
 import java.util.concurrent.Executors;
 import java.util.concurrent.ThreadFactory;
+import java.util.concurrent.atomic.AtomicLong;
 
-/*package*/ class ExecutorCache {
+/* package */ class ExecutorCache {
+  private final Map<String, Executor> mCache = new HashMap<String, Executor>();
 
-  private final Object CACHE_LOCK = new Object();
-  private final Map<String, ExecutorService> mExecutorCache = new HashMap<String, ExecutorService>();
+  Executor getExecutorForKey(final String key) {
+    synchronized (mCache) {
+      Executor executor = mCache.get(key);
 
-  /*package*/ ExecutorService getExecutorForKey(final String key) {
-    ExecutorService executor = mExecutorCache.get(key);
-
-    if (executor == null) {
-      synchronized (CACHE_LOCK) {
-
-        executor = mExecutorCache.get(key);
-        if (executor == null) {
-          //noinspection NullableProblems
-          ThreadFactory tf = new ThreadFactory() {
-            @Override public Thread newThread(Runnable runnable) {
-              Thread t = new Thread(runnable, "ActionDispatcherThread-" + key);
+      if (executor == null) {
+        if (KeySelector.ASYNC_KEY.equals(key)) {
+          final AtomicLong threadCount = new AtomicLong(1);
+          executor = Executors.newCachedThreadPool(new ThreadFactory() {
+            @Override public Thread newThread(Runnable r) {
+              Thread t = new Thread(r, "ActionDispatcherThread-" + key + "-" + threadCount.getAndIncrement());
               t.setPriority(Thread.MIN_PRIORITY);
               t.setDaemon(true);
               return t;
             }
-          };
-
-          if (key.equals(ActionKeySelector.ASYNC_KEY)) {
-            // Custom for async
-            executor = Executors.newCachedThreadPool(tf);
-          } else {
-            executor = Executors.newSingleThreadScheduledExecutor(tf);
-          }
-
-          mExecutorCache.put(key, executor);
+          });
+        } else {
+          executor = Executors.newSingleThreadExecutor(new ThreadFactory() {
+            @Override public Thread newThread(Runnable r) {
+              Thread t = new Thread(r, "ActionDispatcherThread-" + key);
+              t.setPriority(Thread.MIN_PRIORITY);
+              t.setDaemon(true);
+              return t;
+            }
+          });
         }
 
+        mCache.put(key, executor);
       }
-    }
 
-    return executor;
-  }
-
-  /*package*/ Set<String> getActiveKeys() {
-    synchronized (CACHE_LOCK) {
-      return mExecutorCache.keySet();
+      return executor;
     }
   }
 
+  void setExecutor(Executor executor, String key) {
+    synchronized (mCache) {
+      mCache.put(key, executor);
+    }
+  }
+
+  Set<String> getActiveKeys() {
+    synchronized (mCache) {
+      return mCache.keySet();
+    }
+  }
 }

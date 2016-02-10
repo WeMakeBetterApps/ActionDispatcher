@@ -1,19 +1,25 @@
 package com.wmba.actiondispatcher;
 
-import rx.Subscriber;
+import rx.SingleSubscriber;
 
-public interface SubscriptionContext {
+/* package */ class SubscriptionContext {
+  private final ActionDispatcher mDispatcher;
+  private final SingleSubscriber<?> mSubscriber;
 
-  Action[] getActions();
+  public SubscriptionContext(ActionDispatcher dispatcher, SingleSubscriber<?> subscriber) {
+    mDispatcher = dispatcher;
+    mSubscriber = subscriber;
+  }
 
-  Subscriber getSubscriber();
+  public ActionDispatcher getDispatcher() {
+    return mDispatcher;
+  }
 
-  ActionDispatcher getActionDispatcher();
+  public SingleSubscriber<?> getSubscriber() {
+    return mSubscriber;
+  }
 
-  int getCurrentActionIndex();
-
-  void setCurrentActionIndex(int currentActionIndex);
-
-  boolean isUnsubscribed();
-
+  public boolean isUnsubscribed() {
+    return mSubscriber.isUnsubscribed();
+  }
 }

@@ -2,15 +2,21 @@ package com.wmba.actiondispatcher;
 
 import com.wmba.actiondispatcher.persist.JavaActionSerializer;
 
+import org.junit.Before;
 import org.junit.Test;
+
+import java.io.Serializable;
+
 import static org.junit.Assert.*;
 
-public class ActionSerializeTest {
+public class ActionSerializeTests {
+  private JavaActionSerializer mSerializer;
 
-  private JavaActionSerializer mSerializer = new JavaActionSerializer();
+  @Before public void beforeTest() {
+    mSerializer = new JavaActionSerializer();
+  }
 
-  @Test
-  public void serializeDeserializeTest() {
+  @Test public void serializeDeserializeTest() {
     TestAction action1 = new TestAction();
     action1.booleanTest = true;
     action1.intTest = 30;
@@ -60,8 +66,7 @@ public class ActionSerializeTest {
     assertEquals(action1.stringTest, action2.stringTest);
   }
 
-  @Test
-  public void serializeSubObjectTest() {
+  @Test public void serializeSubObjectTest() {
     TestAction action1 = new TestAction();
     action1.booleanTest = true;
     action1.intTest = 30;
@@ -91,8 +96,7 @@ public class ActionSerializeTest {
     assertTrue(errorCaught);
   }
 
-  private static class TestAction extends SingularAction<TestResponse> {
-
+  private static class TestAction extends Action<TestResponse> implements Serializable {
     private boolean booleanTest;
     private int intTest;
     private long longTest;
@@ -100,20 +104,18 @@ public class ActionSerializeTest {
     private double doubleTest;
     private String stringTest;
 
-    public TestAction() {
-      super(true);
-    }
-
     @Override public TestResponse execute() throws Throwable {
       return new TestResponse();
+    }
+
+    @Override public boolean isPersistent() {
+      return true;
     }
   }
 
   private static class TestActionChild extends TestAction {
-
     private boolean unsetBooleanTest;
     private transient boolean transientBooleanTest;
-
   }
 
   private static class TestActionChildWithSubObject extends TestAction {

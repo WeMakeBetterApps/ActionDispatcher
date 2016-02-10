@@ -6,8 +6,6 @@ import android.database.Cursor;
 import android.database.sqlite.SQLiteDatabase;
 import android.database.sqlite.SQLiteOpenHelper;
 
-import com.wmba.actiondispatcher.persist.PersistedActionHolder;
-
 import java.util.ArrayList;
 import java.util.List;
 
@@ -19,7 +17,7 @@ public class ActionSqlOpenHelper extends SQLiteOpenHelper {
   /*package*/ static final String COLUMN_SERIALIZED_ACTION = "serialized_action";
 
   private static final String DB_NAME = "ActionDispatcherPersistentQueue.sqlite";
-  private static final int DB_VERSION = 1;
+  private static final int DB_VERSION = 2;
 
   private final SQLiteDatabase mDB;
 
@@ -62,11 +60,11 @@ public class ActionSqlOpenHelper extends SQLiteOpenHelper {
     mDB.delete(TABLE_ACTIONS, where, null);
   }
 
-  public synchronized List<PersistedActionHolder> getAllActions() {
+  public synchronized List<SerializedActionHolder> getAllActions() {
     String sql = "SELECT " + COLUMN_ID + ", " + COLUMN_SERIALIZED_ACTION + " "
         + "FROM " + TABLE_ACTIONS + " ORDER BY " + COLUMN_ID + " ASC;";
 
-    List<PersistedActionHolder> serializedActions = new ArrayList<PersistedActionHolder>();
+    List<SerializedActionHolder> serializedActions = new ArrayList<SerializedActionHolder>();
 
     Cursor c = null;
     try {
@@ -80,7 +78,7 @@ public class ActionSqlOpenHelper extends SQLiteOpenHelper {
           long id = c.getLong(idIndex);
           byte[] serializedAction = c.getBlob(actionIndex);
 
-          serializedActions.add(new PersistedActionHolder(id, serializedAction));
+          serializedActions.add(new SerializedActionHolder(id, serializedAction));
         } while (c.moveToNext());
       }
 
@@ -99,4 +97,21 @@ public class ActionSqlOpenHelper extends SQLiteOpenHelper {
     mDB.execSQL("VACUUM");
   }
 
+  static class SerializedActionHolder {
+    private final long mId;
+    private final byte[] mSerializedAction;
+
+    SerializedActionHolder(long id, byte[] serializedAction) {
+      mId = id;
+      mSerializedAction = serializedAction;
+    }
+
+    public long getId() {
+      return mId;
+    }
+
+    public byte[] getSerializedAction() {
+      return mSerializedAction;
+    }
+  }
 }
