@@ -12,7 +12,7 @@ sourceSets.main.compileClasspath += configurations.providedCompile
 sourceSets.test.compileClasspath += configurations.providedCompile
 sourceSets.test.runtimeClasspath += configurations.providedCompile
 
-version = '1.0.0-SNAPSHOT'
+version = '1.0.0'
 
 dependencies {
     compile project(':java')
@@ -32,19 +32,19 @@ test {
     }
 }
 
-//task sourcesJar(type: Jar, dependsOn:classes) {
-//    classifier = 'sources'
-//    from sourceSets.main.allSource
-//}
-//
-//task javadocJar(type: Jar, dependsOn:javadoc) {
-//    classifier = 'javadoc'
-//    from javadoc.destinationDir
-//}
+task sourcesJar(type: Jar, dependsOn:classes) {
+    classifier = 'sources'
+    from sourceSets.main.allSource
+}
 
-//artifacts {
-//    archives javadocJar, sourcesJar
-//}
+task javadocJar(type: Jar, dependsOn:javadoc) {
+    classifier = 'javadoc'
+    from javadoc.destinationDir
+}
+
+artifacts {
+    archives javadocJar, sourcesJar
+}
 
 signing {
     sign configurations.archives
